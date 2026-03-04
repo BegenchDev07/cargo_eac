@@ -1,0 +1,61 @@
+{
+  "expo": {
+    "name": "Warehouse Order Processing",
+    "slug": "warehouse-order-processing",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "myapp",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Это приложение требует доступ к камере для фотографирования товаров",
+        "NSPhotoLibraryUsageDescription": "Это приложение требует доступ к галерее для выбора фотографий товаров"
+      },
+      "bundleIdentifier": "com.warehouse.orderprocessing"
+    },
+    "android": {
+      "package": "com.warehouse.orderprocessing",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "usesCleartextTraffic": true,
+      "networkSecurityConfig": "res/xml/network_security_config.xml"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Это приложение требует доступ к галерее для выбора фотографий товаров",
+          "cameraPermission": "Это приложение требует доступ к камере для фотографирования товаров"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "EXPO_PUBLIC_POCKETBASE_URL": "http://120.55.49.54",
+      "router": {},
+      "eas": {
+        "projectId": "45455385-b332-4d82-8164-12c4f52670b3"
+      }
+    }
+  }
+}
