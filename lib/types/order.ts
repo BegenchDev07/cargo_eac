@@ -8,6 +8,7 @@ export interface WarehouseOrder {
   client_number: string;
   qr_data?: any;
   pictures?: string[];
+  date?: string;
   created_at?: string;
 }
 

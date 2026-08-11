@@ -123,6 +123,9 @@ importers:
       '@babel/core':
         specifier: ^7.25.2
         version: 7.28.4
+      '@types/md5':
+        specifier: ^2.3.6
+        version: 2.3.6
       '@types/react':
         specifier: ~19.1.10
         version: 19.1.17
@@ -1218,6 +1221,9 @@ packages:
 
   '@types/istanbul-reports@3.0.4':
     resolution: {integrity: sha512-pk2B1NWalF9toCRu6gjBzR69syFjP4Od8WRAX+0mmf9lAjCRicLOWc+ZrxZHx/0XRjotgkF9t6iaMJ+aXcOdZQ==}
+
+  '@types/md5@2.3.6':
+    resolution: {integrity: sha512-WD69gNXtRBnpknfZcb4TRQ0XJQbUPZcai/Qdhmka3sxUR3Et8NrXoeAoknG/LghYHTf4ve795rInVYHBTQdNVA==}
 
   '@types/node@24.8.0':
     resolution: {integrity: sha512-5x08bUtU8hfboMTrJ7mEO4CpepS9yBwAqcL52y86SWNmbPX8LVbNs3EP4cNrIZgdjk2NAlP2ahNihozpoZIxSg==}
@@ -5022,6 +5028,8 @@ snapshots:
   '@types/istanbul-reports@3.0.4':
     dependencies:
       '@types/istanbul-lib-report': 3.0.3
+
+  '@types/md5@2.3.6': {}
 
   '@types/node@24.8.0':
     dependencies:

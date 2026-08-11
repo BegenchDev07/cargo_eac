@@ -79,6 +79,24 @@ export interface Translations {
     insert: string;
     orders: string;
     language: string;
+    dashboard: string;
+  };
+  dashboard: {
+    title: string;
+    loading: string;
+    errorTitle: string;
+    errorMessage: string;
+    empty: string;
+    refresh: string;
+    exportExcel: string;
+    deleteSelected: string;
+    deleteConfirmTitle: string;
+    deleteConfirmMessage: string;
+    saveError: string;
+    deleteError: string;
+    webOnlyTitle: string;
+    webOnlyMessage: string;
+    openInBrowser: string;
   };
 }
 
@@ -162,6 +180,24 @@ export const translations: Record<Language, Translations> = {
       insert: 'Вставка',
       orders: 'Заказы',
       language: 'Язык',
+      dashboard: 'Дашборд',
+    },
+    dashboard: {
+      title: 'Дашборд заказов',
+      loading: 'Загрузка заказов...',
+      errorTitle: 'Ошибка',
+      errorMessage: 'Не удалось загрузить заказы',
+      empty: 'Нет заказов',
+      refresh: 'Обновить',
+      exportExcel: 'Экспорт Excel',
+      deleteSelected: 'Удалить выбранное',
+      deleteConfirmTitle: 'Подтвердить удаление',
+      deleteConfirmMessage: 'Удалить выбранные заказы? Это действие нельзя отменить.',
+      saveError: 'Не удалось сохранить изменения',
+      deleteError: 'Не удалось удалить заказы',
+      webOnlyTitle: 'Дашборд доступен только в браузере',
+      webOnlyMessage: 'Откройте это приложение на компьютере, чтобы управлять заказами как в таблице.',
+      openInBrowser: 'Открыть в браузере',
     },
   },
   zh: {
@@ -243,6 +279,24 @@ export const translations: Record<Language, Translations> = {
       insert: '插入',
       orders: '订单',
       language: '语言',
+      dashboard: '仪表盘',
+    },
+    dashboard: {
+      title: '订单仪表盘',
+      loading: '加载订单中...',
+      errorTitle: '错误',
+      errorMessage: '无法加载订单',
+      empty: '没有订单',
+      refresh: '刷新',
+      exportExcel: '导出 Excel',
+      deleteSelected: '删除选中项',
+      deleteConfirmTitle: '确认删除',
+      deleteConfirmMessage: '删除选中的订单？此操作无法撤销。',
+      saveError: '无法保存更改',
+      deleteError: '无法删除订单',
+      webOnlyTitle: '仪表盘仅在浏览器中可用',
+      webOnlyMessage: '请在电脑上打开此应用以表格形式管理订单。',
+      openInBrowser: '在浏览器中打开',
     },
   },
 };

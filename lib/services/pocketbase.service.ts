@@ -1,5 +1,5 @@
 import PocketBase from 'pocketbase';
-import { DatabaseService } from './database.interface';
+import { DatabaseService, UpdateOrderInput } from './database.interface';
 import { WarehouseOrder } from '../types/order';
 import Constants from 'expo-constants';
 import * as FileSystem from 'expo-file-system';
@@ -72,7 +72,8 @@ class PocketBaseService implements DatabaseService {
         client_number: record.client_number,
         qr_data: record.qr_data,
         pictures: this.mapRecordToPictures(record),
-        created_at: record.created || record.date,
+        date: record.date,
+        created_at: record.created,
       };
     } catch (error) {
       console.error('PocketBase create error:', error);
@@ -94,7 +95,8 @@ class PocketBaseService implements DatabaseService {
         client_number: record.client_number,
         qr_data: record.qr_data,
         pictures: this.mapRecordToPictures(record),
-        created_at: record.created || record.date,
+        date: record.date,
+        created_at: record.created,
       };
     } catch (error) {
       console.error('PocketBase get error:', error);
@@ -118,7 +120,8 @@ class PocketBaseService implements DatabaseService {
         client_number: record.client_number,
         qr_data: record.qr_data,
         pictures: this.mapRecordToPictures(record),
-        created_at: record.created || record.date,
+        date: record.date,
+        created_at: record.created,
       }));
 
       return {
@@ -129,6 +132,50 @@ class PocketBaseService implements DatabaseService {
     } catch (error) {
       console.error('PocketBase list error:', error);
       return { items: [], totalPages: 0, totalItems: 0 };
+    }
+  }
+
+  async updateOrder(id: string, order: UpdateOrderInput): Promise<WarehouseOrder | null> {
+    try {
+      const updateData: Record<string, any> = {};
+
+      if (order.client_article !== undefined) updateData.client_article = order.client_article;
+      if (order.weight !== undefined) updateData.weight = order.weight;
+      if (order.cubic_meters !== undefined) updateData.cubic_meters = order.cubic_meters;
+      if (order.product_name !== undefined) updateData.product_name = order.product_name;
+      if (order.quantity !== undefined) updateData.quantity = order.quantity;
+      if (order.client_number !== undefined) updateData.client_number = order.client_number;
+      if (order.date !== undefined) updateData.date = order.date;
+      if (order.qr_data !== undefined) updateData.qr_data = order.qr_data;
+
+      const record = await pb.collection('orders').update(id, updateData);
+
+      return {
+        id: record.id,
+        client_article: record.client_article,
+        weight: record.weight,
+        cubic_meters: record.cubic_meters,
+        product_name: record.product_name,
+        quantity: record.quantity,
+        client_number: record.client_number,
+        qr_data: record.qr_data,
+        pictures: this.mapRecordToPictures(record),
+        date: record.date,
+        created_at: record.created,
+      };
+    } catch (error) {
+      console.error('PocketBase update error:', error);
+      throw new Error(`Failed to update order: ${error}`);
+    }
+  }
+
+  async deleteOrder(id: string): Promise<boolean> {
+    try {
+      await pb.collection('orders').delete(id);
+      return true;
+    } catch (error) {
+      console.error('PocketBase delete error:', error);
+      throw new Error(`Failed to delete order: ${error}`);
     }
   }
 
