@@ -14,7 +14,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Package } from 'lucide-react-native';
 import ImagePicker from '../../components/ImagePicker';
-import { OrderFormData } from '../../lib/types/order';
+import { OrderFormData, CARGO_TYPES, CargoType } from '../../lib/types/order';
 import { validateOrderForm, hasValidationErrors, ValidationErrors } from '../../utils/validation';
 import { databaseService } from '../../lib/services/pocketbase.service';
 import { useLanguage } from '../../lib/i18n/LanguageContext';
@@ -36,6 +36,7 @@ export default function OrderFormScreen() {
     product_name: '',
     quantity: '',
     client_number: '',
+    cargo_type: 'standard',
     images: [],
   });
 
@@ -80,6 +81,7 @@ export default function OrderFormScreen() {
         product_name: formData.product_name,
         quantity: parseInt(formData.quantity, 10),
         client_number: formData.client_number,
+        cargo_type: formData.cargo_type,
         qr_data: {},
       };
 
@@ -105,6 +107,7 @@ export default function OrderFormScreen() {
         product_name: '',
         quantity: '',
         client_number: '',
+        cargo_type: 'standard',
         images: [],
       });
     } catch (error) {
@@ -256,6 +259,30 @@ export default function OrderFormScreen() {
           </View>
 
           <View style={styles.inputGroup}>
+            <Text style={styles.label}>{t.form.cargoType}</Text>
+            <View style={styles.cargoTypesRow}>
+              {CARGO_TYPES.map((type) => (
+                <TouchableOpacity
+                  key={type}
+                  style={[
+                    styles.cargoTypeButton,
+                    formData.cargo_type === type && styles.cargoTypeButtonActive,
+                  ]}
+                  onPress={() => updateField('cargo_type', type)}
+                  disabled={loading}>
+                  <Text
+                    style={[
+                      styles.cargoTypeButtonText,
+                      formData.cargo_type === type && styles.cargoTypeButtonTextActive,
+                    ]}>
+                    {t.dashboard.cargoTypes[type]}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
             <Text style={styles.label}>{t.form.photos} {t.form.required}</Text>
             <ImagePicker
               images={formData.images}
@@ -325,6 +352,31 @@ const styles = StyleSheet.create({
   dimensionsRow: {
     flexDirection: 'row',
     gap: 12,
+  },
+  cargoTypesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  cargoTypeButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderColor: '#d1d5db',
+  },
+  cargoTypeButtonActive: {
+    backgroundColor: '#059669',
+    borderColor: '#059669',
+  },
+  cargoTypeButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+  },
+  cargoTypeButtonTextActive: {
+    color: '#fff',
   },
   dimensionInput: {
     flex: 1,

@@ -10,6 +10,7 @@ export interface ValidationErrors {
   product_name?: string;
   quantity?: string;
   client_number?: string;
+  cargo_type?: string;
   images?: string;
 }
 

@@ -1,3 +1,7 @@
+export type CargoType = 'dangerous' | 'liquid' | 'brand' | 'standard';
+
+export const CARGO_TYPES: CargoType[] = ['dangerous', 'liquid', 'brand', 'standard'];
+
 export interface WarehouseOrder {
   id?: string;
   client_article: string;
@@ -6,6 +10,9 @@ export interface WarehouseOrder {
   product_name: string;
   quantity: number;
   client_number: string;
+  cargo_type?: CargoType;
+  freight_id?: string;
+  freight_number?: string;
   qr_data?: any;
   pictures?: string[];
   date?: string;
@@ -21,6 +28,7 @@ export interface OrderFormData {
   product_name: string;
   quantity: string;
   client_number: string;
+  cargo_type: CargoType;
   images: string[];
 }
 

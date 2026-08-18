@@ -1,6 +1,7 @@
 import PocketBase from 'pocketbase';
 import { DatabaseService, UpdateOrderInput } from './database.interface';
 import { WarehouseOrder } from '../types/order';
+import { Freight, CreateFreightInput } from '../types/freight';
 import Constants from 'expo-constants';
 import * as FileSystem from 'expo-file-system';
 
@@ -35,6 +36,7 @@ class PocketBaseService implements DatabaseService {
       formData.append('product_name', order.product_name);
       formData.append('quantity', order.quantity.toString());
       formData.append('client_number', order.client_number);
+      formData.append('cargo_type', order.cargo_type || 'standard');
       formData.append('date', new Date().toISOString());
       formData.append('qr_data', JSON.stringify(order.qr_data || {}));
 
@@ -60,7 +62,9 @@ class PocketBaseService implements DatabaseService {
         }
       }
 
-      const record = await pb.collection('orders').create(formData);
+      const record = await pb.collection('orders').create(formData, {
+        expand: 'freight',
+      });
 
       return {
         id: record.id,
@@ -70,6 +74,9 @@ class PocketBaseService implements DatabaseService {
         product_name: record.product_name,
         quantity: record.quantity,
         client_number: record.client_number,
+        cargo_type: record.cargo_type,
+        freight_id: record.expand?.freight?.id,
+        freight_number: record.expand?.freight?.freight_number,
         qr_data: record.qr_data,
         pictures: this.mapRecordToPictures(record),
         date: record.date,
@@ -83,7 +90,9 @@ class PocketBaseService implements DatabaseService {
 
   async getOrder(id: string): Promise<WarehouseOrder | null> {
     try {
-      const record = await pb.collection('orders').getOne(id);
+      const record = await pb.collection('orders').getOne(id, {
+        expand: 'freight',
+      });
 
       return {
         id: record.id,
@@ -93,6 +102,9 @@ class PocketBaseService implements DatabaseService {
         product_name: record.product_name,
         quantity: record.quantity,
         client_number: record.client_number,
+        cargo_type: record.cargo_type,
+        freight_id: record.expand?.freight?.id,
+        freight_number: record.expand?.freight?.freight_number,
         qr_data: record.qr_data,
         pictures: this.mapRecordToPictures(record),
         date: record.date,
@@ -108,6 +120,7 @@ class PocketBaseService implements DatabaseService {
     try {
       const resultList = await pb.collection('orders').getList(page, perPage, {
         sort: '-created',
+        expand: 'freight',
       });
 
       const items = resultList.items.map((record) => ({
@@ -118,6 +131,9 @@ class PocketBaseService implements DatabaseService {
         product_name: record.product_name,
         quantity: record.quantity,
         client_number: record.client_number,
+        cargo_type: record.cargo_type,
+        freight_id: record.expand?.freight?.id,
+        freight_number: record.expand?.freight?.freight_number,
         qr_data: record.qr_data,
         pictures: this.mapRecordToPictures(record),
         date: record.date,
@@ -145,10 +161,14 @@ class PocketBaseService implements DatabaseService {
       if (order.product_name !== undefined) updateData.product_name = order.product_name;
       if (order.quantity !== undefined) updateData.quantity = order.quantity;
       if (order.client_number !== undefined) updateData.client_number = order.client_number;
+      if (order.cargo_type !== undefined) updateData.cargo_type = order.cargo_type;
+      if (order.freight_id !== undefined) updateData.freight = order.freight_id || null;
       if (order.date !== undefined) updateData.date = order.date;
       if (order.qr_data !== undefined) updateData.qr_data = order.qr_data;
 
-      const record = await pb.collection('orders').update(id, updateData);
+      const record = await pb.collection('orders').update(id, updateData, {
+        expand: 'freight',
+      });
 
       return {
         id: record.id,
@@ -158,6 +178,9 @@ class PocketBaseService implements DatabaseService {
         product_name: record.product_name,
         quantity: record.quantity,
         client_number: record.client_number,
+        cargo_type: record.cargo_type,
+        freight_id: record.expand?.freight?.id,
+        freight_number: record.expand?.freight?.freight_number,
         qr_data: record.qr_data,
         pictures: this.mapRecordToPictures(record),
         date: record.date,
@@ -176,6 +199,111 @@ class PocketBaseService implements DatabaseService {
     } catch (error) {
       console.error('PocketBase delete error:', error);
       throw new Error(`Failed to delete order: ${error}`);
+    }
+  }
+
+  async listFreights(): Promise<Freight[]> {
+    try {
+      const resultList = await pb.collection('freights').getList(1, 500, {
+        sort: '-created',
+      });
+
+      return resultList.items.map((record) => ({
+        id: record.id,
+        freight_number: record.freight_number,
+        load_date: record.load_date,
+        notes: record.notes,
+        status: record.status,
+        created_at: record.created,
+      }));
+    } catch (error) {
+      console.error('PocketBase list freights error:', error);
+      return [];
+    }
+  }
+
+  private async generateFreightNumber(): Promise<string> {
+    try {
+      const resultList = await pb.collection('freights').getList(1, 1, {
+        sort: '-created',
+      });
+
+      if (resultList.items.length === 0) {
+        return 'F-0001';
+      }
+
+      const lastNumber = resultList.items[0].freight_number as string;
+      const match = lastNumber.match(/(\d+)$/);
+      const lastIndex = match ? parseInt(match[1], 10) : 0;
+      const nextIndex = lastIndex + 1;
+      return `F-${String(nextIndex).padStart(4, '0')}`;
+    } catch (error) {
+      console.error('Failed to generate freight number:', error);
+      return `F-${Date.now()}`;
+    }
+  }
+
+  async updateFreight(
+    id: string,
+    input: Partial<Omit<Freight, 'id' | 'freight_number' | 'created_at'>>
+  ): Promise<Freight | null> {
+    try {
+      const updateData: Record<string, any> = {};
+      if (input.load_date !== undefined) updateData.load_date = input.load_date;
+      if (input.notes !== undefined) updateData.notes = input.notes;
+      if (input.status !== undefined) updateData.status = input.status;
+
+      const record = await pb.collection('freights').update(id, updateData);
+
+      return {
+        id: record.id,
+        freight_number: record.freight_number,
+        load_date: record.load_date,
+        notes: record.notes,
+        status: record.status,
+        created_at: record.created,
+      };
+    } catch (error) {
+      console.error('PocketBase update freight error:', error);
+      throw new Error(`Failed to update freight: ${error}`);
+    }
+  }
+
+  async createFreight(input: CreateFreightInput): Promise<Freight> {
+    try {
+      const freightNumber = await this.generateFreightNumber();
+
+      const record = await pb.collection('freights').create({
+        freight_number: freightNumber,
+        load_date: input.load_date,
+        notes: input.notes || '',
+        status: input.status || 'open',
+      });
+
+      return {
+        id: record.id,
+        freight_number: record.freight_number,
+        load_date: record.load_date,
+        notes: record.notes,
+        status: record.status,
+        created_at: record.created,
+      };
+    } catch (error) {
+      console.error('PocketBase create freight error:', error);
+      throw new Error(`Failed to create freight: ${error}`);
+    }
+  }
+
+  async assignOrdersToFreight(orderIds: string[], freightId: string): Promise<void> {
+    try {
+      await Promise.all(
+        orderIds.map((id) =>
+          pb.collection('orders').update(id, { freight: freightId })
+        )
+      );
+    } catch (error) {
+      console.error('PocketBase assign orders to freight error:', error);
+      throw new Error(`Failed to assign orders to freight: ${error}`);
     }
   }
 

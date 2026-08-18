@@ -17,6 +17,7 @@ export interface Translations {
     submit: string;
     required: string;
     date: string;
+    cargoType: string;
   };
   placeholders: {
     clientArticle: string;
@@ -80,6 +81,19 @@ export interface Translations {
     orders: string;
     language: string;
     dashboard: string;
+    freights: string;
+  };
+  freights: {
+    title: string;
+    createFreight: string;
+    empty: string;
+    orders: string;
+    noOrders: string;
+    status: {
+      open: string;
+      closed: string;
+      shipped: string;
+    };
   };
   dashboard: {
     title: string;
@@ -92,8 +106,34 @@ export interface Translations {
     deleteSelected: string;
     deleteConfirmTitle: string;
     deleteConfirmMessage: string;
+    saving: string;
+    saved: string;
     saveError: string;
     deleteError: string;
+    cargoType: string;
+    cargoTypes: {
+      dangerous: string;
+      liquid: string;
+      brand: string;
+      standard: string;
+    };
+    price: string;
+    freight: string;
+    freightNumber: string;
+    assignToFreight: string;
+    assignFreightError: string;
+    createFreight: string;
+    createFreightError: string;
+    existingFreight: string;
+    newFreight: string;
+    selectFreight: string;
+    loadDate: string;
+    notes: string;
+    exportAll: string;
+    exportFiltered: string;
+    exportSelected: string;
+    cancel: string;
+    confirm: string;
     webOnlyTitle: string;
     webOnlyMessage: string;
     openInBrowser: string;
@@ -118,6 +158,7 @@ export const translations: Record<Language, Translations> = {
       submit: 'Создать QR-код',
       required: '*',
       date: 'Дата',
+      cargoType: 'Тип груза',
     },
     placeholders: {
       clientArticle: 'Введите артикул клиента',
@@ -181,6 +222,19 @@ export const translations: Record<Language, Translations> = {
       orders: 'Заказы',
       language: 'Язык',
       dashboard: 'Дашборд',
+      freights: 'Фрахты',
+    },
+    freights: {
+      title: 'Фрахты',
+      createFreight: 'Создать фрахт',
+      empty: 'Нет фрахтов',
+      orders: 'заказов',
+      noOrders: 'В этом фрахте пока нет заказов',
+      status: {
+        open: 'Открыт',
+        closed: 'Закрыт',
+        shipped: 'Отправлен',
+      },
     },
     dashboard: {
       title: 'Дашборд заказов',
@@ -193,8 +247,34 @@ export const translations: Record<Language, Translations> = {
       deleteSelected: 'Удалить выбранное',
       deleteConfirmTitle: 'Подтвердить удаление',
       deleteConfirmMessage: 'Удалить выбранные заказы? Это действие нельзя отменить.',
+      saving: 'Сохранение...',
+      saved: 'Сохранено',
       saveError: 'Не удалось сохранить изменения',
       deleteError: 'Не удалось удалить заказы',
+      cargoType: 'Тип груза',
+      cargoTypes: {
+        dangerous: 'Опасный',
+        liquid: 'Жидкость',
+        brand: 'Брендовый',
+        standard: 'Стандартный',
+      },
+      price: 'Стоимость',
+      freight: 'Фрахт',
+      freightNumber: 'Номер фрахта',
+      assignToFreight: 'В фрахт',
+      assignFreightError: 'Не удалось назначить заказы в фрахт',
+      createFreight: 'Создать фрахт',
+      createFreightError: 'Не удалось создать фрахт',
+      existingFreight: 'Существующий',
+      newFreight: 'Новый',
+      selectFreight: 'Выберите фрахт',
+      loadDate: 'Дата погрузки',
+      notes: 'Примечания',
+      exportAll: 'Все строки',
+      exportFiltered: 'Отфильтрованные',
+      exportSelected: 'Выбранные',
+      cancel: 'Отмена',
+      confirm: 'Подтвердить',
       webOnlyTitle: 'Дашборд доступен только в браузере',
       webOnlyMessage: 'Откройте это приложение на компьютере, чтобы управлять заказами как в таблице.',
       openInBrowser: 'Открыть в браузере',
@@ -217,6 +297,7 @@ export const translations: Record<Language, Translations> = {
       submit: '生成二维码',
       required: '*',
       date: '日期',
+      cargoType: '货物类型',
     },
     placeholders: {
       clientArticle: '请输入货号',
@@ -280,6 +361,19 @@ export const translations: Record<Language, Translations> = {
       orders: '订单',
       language: '语言',
       dashboard: '仪表盘',
+      freights: '货运',
+    },
+    freights: {
+      title: '货运',
+      createFreight: '创建货运',
+      empty: '没有货运',
+      orders: '订单',
+      noOrders: '此货运中暂无订单',
+      status: {
+        open: '开放',
+        closed: '关闭',
+        shipped: '已发货',
+      },
     },
     dashboard: {
       title: '订单仪表盘',
@@ -292,8 +386,34 @@ export const translations: Record<Language, Translations> = {
       deleteSelected: '删除选中项',
       deleteConfirmTitle: '确认删除',
       deleteConfirmMessage: '删除选中的订单？此操作无法撤销。',
+      saving: '保存中...',
+      saved: '已保存',
       saveError: '无法保存更改',
       deleteError: '无法删除订单',
+      cargoType: '货物类型',
+      cargoTypes: {
+        dangerous: '危险品',
+        liquid: '液体',
+        brand: '品牌货',
+        standard: '标准货',
+      },
+      price: '价格',
+      freight: '货运',
+      freightNumber: '货运编号',
+      assignToFreight: '分配到货运',
+      assignFreightError: '无法将订单分配到货运',
+      createFreight: '创建货运',
+      createFreightError: '无法创建货运',
+      existingFreight: '现有',
+      newFreight: '新建',
+      selectFreight: '选择货运',
+      loadDate: '装货日期',
+      notes: '备注',
+      exportAll: '全部',
+      exportFiltered: '已筛选',
+      exportSelected: '已选择',
+      cancel: '取消',
+      confirm: '确认',
       webOnlyTitle: '仪表盘仅在浏览器中可用',
       webOnlyMessage: '请在电脑上打开此应用以表格形式管理订单。',
       openInBrowser: '在浏览器中打开',
