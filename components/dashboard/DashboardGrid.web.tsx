@@ -34,18 +34,33 @@ const theme = themeAlpine;
 
 interface DashboardGridProps {
   onError?: (message: string) => void;
+  freightId?: string;
 }
 
-function PicturesCellRenderer(params: ICellRendererParams<WarehouseOrder>) {
+interface PicturesCellRendererParams extends ICellRendererParams<WarehouseOrder> {
+  onImageClick?: (images: string[]) => void;
+}
+
+function PicturesCellRenderer(params: PicturesCellRendererParams) {
   const count = params.value?.length || 0;
   if (count === 0) return <span style={{ color: '#9ca3af' }}>—</span>;
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-      <img
-        src={params.value![0]}
-        alt=""
-        style={{ width: 28, height: 28, borderRadius: 4, objectFit: 'cover' }}
-      />
+      <button
+        type="button"
+        onClick={() => params.onImageClick?.(params.value || [])}
+        style={{
+          padding: 0,
+          border: 'none',
+          background: 'none',
+          cursor: params.onImageClick ? 'pointer' : 'default',
+        }}>
+        <img
+          src={params.value![0]}
+          alt=""
+          style={{ width: 28, height: 28, borderRadius: 4, objectFit: 'cover' }}
+        />
+      </button>
       <Text style={{ fontSize: 12, color: '#6b7280' }}>
         {count > 1 ? `+${count - 1}` : ''}
       </Text>
@@ -53,7 +68,7 @@ function PicturesCellRenderer(params: ICellRendererParams<WarehouseOrder>) {
   );
 }
 
-export default function DashboardGrid({ onError }: DashboardGridProps) {
+export default function DashboardGrid({ onError, freightId }: DashboardGridProps) {
   const { t } = useLanguage();
   const gridApiRef = useRef<GridApi | null>(null);
   const saveStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -69,19 +84,26 @@ export default function DashboardGrid({ onError }: DashboardGridProps) {
   const [newFreightLoadDate, setNewFreightLoadDate] = useState<string>('');
   const [newFreightNotes, setNewFreightNotes] = useState<string>('');
   const [exportMode, setExportMode] = useState<'all' | 'filtered' | 'selected'>('all');
+  const [lightboxImages, setLightboxImages] = useState<string[] | null>(null);
 
   const loadOrders = useCallback(async () => {
     setLoading(true);
     try {
       const result = await databaseService.listOrders(1, 500);
-      setOrders(result.items);
+      let items = result.items;
+      if (freightId) {
+        items = items.filter((order) => order.freight_id === freightId);
+      } else {
+        items = items.filter((order) => !order.freight_id);
+      }
+      setOrders(items);
     } catch (error) {
       console.error('Failed to load orders:', error);
       onError?.(t.dashboard.errorMessage);
     } finally {
       setLoading(false);
     }
-  }, [onError, t]);
+  }, [freightId, onError, t]);
 
   const loadFreights = useCallback(async () => {
     try {
@@ -94,8 +116,7 @@ export default function DashboardGrid({ onError }: DashboardGridProps) {
 
   useEffect(() => {
     loadOrders();
-    loadFreights();
-  }, [loadOrders, loadFreights]);
+  }, [loadOrders]);
 
   useEffect(() => {
     return () => {
@@ -125,8 +146,8 @@ export default function DashboardGrid({ onError }: DashboardGridProps) {
         filter: true,
       },
       {
-        field: 'client_article',
-        headerName: t.form.clientArticle,
+        field: 'customer_name',
+        headerName: t.form.customerName,
         flex: 1,
         minWidth: 140,
         editable: true,
@@ -219,14 +240,18 @@ export default function DashboardGrid({ onError }: DashboardGridProps) {
         },
         valueFormatter: (params) => formatPrice(params.value as number),
       },
-      {
-        field: 'freight_number',
-        headerName: t.dashboard.freightNumber,
-        width: 130,
-        editable: false,
-        sortable: true,
-        filter: true,
-      },
+      ...(freightId
+        ? []
+        : [
+            {
+              field: 'freight_number' as const,
+              headerName: t.dashboard.freightNumber,
+              width: 130,
+              editable: false,
+              sortable: true,
+              filter: true,
+            },
+          ]),
       {
         field: 'date',
         headerName: t.form.date,
@@ -264,9 +289,12 @@ export default function DashboardGrid({ onError }: DashboardGridProps) {
         sortable: false,
         filter: false,
         cellRenderer: PicturesCellRenderer,
+        cellRendererParams: {
+          onImageClick: setLightboxImages,
+        },
       },
     ],
-    [t]
+    [freightId, t]
   );
 
   const defaultColDef = useMemo<ColDef<WarehouseOrder>>(
@@ -362,7 +390,7 @@ export default function DashboardGrid({ onError }: DashboardGridProps) {
 
     const exportRows = rowsToExport.map((order) => ({
       ID: order.id,
-      [t.form.clientArticle]: order.client_article,
+      [t.form.customerName]: order.customer_name,
       [t.form.productName]: order.product_name,
       [t.form.weight]: order.weight,
       [t.form.cubicMeters]: order.cubic_meters,
@@ -389,14 +417,15 @@ export default function DashboardGrid({ onError }: DashboardGridProps) {
     XLSX.writeFile(workbook, fileName);
   }, [exportMode, orders, t]);
 
-  const handleOpenAssignFreight = useCallback(() => {
+  const handleOpenAssignFreight = useCallback(async () => {
     if (selectedIds.size === 0) return;
+    await loadFreights();
     setFreightModalMode('existing');
     setSelectedFreightId(freights[0]?.id || '');
     setNewFreightLoadDate(new Date().toISOString().slice(0, 16));
     setNewFreightNotes('');
     setFreightModalVisible(true);
-  }, [freights, selectedIds.size]);
+  }, [freights, loadFreights, selectedIds.size]);
 
   const handleAssignExistingFreight = useCallback(async () => {
     if (!selectedFreightId || selectedIds.size === 0) return;
@@ -460,12 +489,21 @@ export default function DashboardGrid({ onError }: DashboardGridProps) {
     );
   }, [loadOrders, onError, selectedIds, t]);
 
+  const currentFreight = useMemo(
+    () => freights.find((f) => f.id === freightId),
+    [freights, freightId]
+  );
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.titleRow}>
           <LayoutGrid size={28} color="#007AFF" />
-          <Text style={styles.title}>{t.dashboard.title}</Text>
+          <Text style={styles.title}>
+            {freightId && currentFreight
+              ? `${t.dashboard.freight}: ${currentFreight.freight_number}`
+              : t.dashboard.title}
+          </Text>
           {saveStatus !== 'idle' && (
             <View
               style={[
@@ -503,34 +541,38 @@ export default function DashboardGrid({ onError }: DashboardGridProps) {
             <Download size={18} color="#007AFF" />
             <Text style={styles.actionText}>{t.dashboard.exportExcel}</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionButton, selectedIds.size === 0 && styles.actionButtonDisabled]}
-            onPress={handleOpenAssignFreight}
-            disabled={selectedIds.size === 0}>
-            <LayoutGrid size={18} color={selectedIds.size === 0 ? '#9ca3af' : '#007AFF'} />
-            <Text
-              style={[
-                styles.actionText,
-                selectedIds.size === 0 && styles.actionTextDisabled,
-              ]}>
-              {t.dashboard.assignToFreight}
-              {selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionButton, selectedIds.size === 0 && styles.actionButtonDisabled]}
-            onPress={handleDeleteSelected}
-            disabled={selectedIds.size === 0}>
-            <Trash2 size={18} color={selectedIds.size === 0 ? '#9ca3af' : '#dc2626'} />
-            <Text
-              style={[
-                styles.actionText,
-                selectedIds.size === 0 && styles.actionTextDisabled,
-              ]}>
-              {t.dashboard.deleteSelected}
-              {selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
-            </Text>
-          </TouchableOpacity>
+          {!freightId && (
+            <>
+              <TouchableOpacity
+                style={[styles.actionButton, selectedIds.size === 0 && styles.actionButtonDisabled]}
+                onPress={handleOpenAssignFreight}
+                disabled={selectedIds.size === 0}>
+                <LayoutGrid size={18} color={selectedIds.size === 0 ? '#9ca3af' : '#007AFF'} />
+                <Text
+                  style={[
+                    styles.actionText,
+                    selectedIds.size === 0 && styles.actionTextDisabled,
+                  ]}>
+                  {t.dashboard.assignToFreight}
+                  {selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionButton, selectedIds.size === 0 && styles.actionButtonDisabled]}
+                onPress={handleDeleteSelected}
+                disabled={selectedIds.size === 0}>
+                <Trash2 size={18} color={selectedIds.size === 0 ? '#9ca3af' : '#dc2626'} />
+                <Text
+                  style={[
+                    styles.actionText,
+                    selectedIds.size === 0 && styles.actionTextDisabled,
+                  ]}>
+                  {t.dashboard.deleteSelected}
+                  {selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
       </View>
 
@@ -655,6 +697,33 @@ export default function DashboardGrid({ onError }: DashboardGridProps) {
             </View>
           </View>
         </View>
+      )}
+
+      {lightboxImages && (
+        <div
+          style={styles.lightboxOverlay}
+          onClick={() => setLightboxImages(null)}
+          role="button"
+          tabIndex={0}>
+          <View style={styles.lightboxContent}>
+            <button
+              type="button"
+              onClick={() => setLightboxImages(null)}
+              style={styles.lightboxCloseButton}>
+              ×
+            </button>
+            <View style={{ flexDirection: 'row', gap: 12, overflowX: 'auto', paddingBottom: 12 }}>
+              {lightboxImages.map((uri, index) => (
+                <img
+                  key={index}
+                  src={uri}
+                  alt=""
+                  style={{ maxWidth: '90vw', maxHeight: '80vh', objectFit: 'contain' }}
+                />
+              ))}
+            </View>
+          </View>
+        </div>
       )}
     </View>
   );
@@ -884,5 +953,30 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     fontSize: 15,
     fontWeight: '600',
+  },
+  lightboxOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2000,
+  },
+  lightboxContent: {
+    position: 'relative',
+    padding: 20,
+  },
+  lightboxCloseButton: {
+    position: 'absolute',
+    top: -40,
+    right: 0,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    color: '#fff',
+    fontSize: 36,
+    cursor: 'pointer',
   },
 });

@@ -14,11 +14,10 @@ import {
 import { useRouter } from 'expo-router';
 import { Package } from 'lucide-react-native';
 import ImagePicker from '../../components/ImagePicker';
-import { OrderFormData, CARGO_TYPES, CargoType } from '../../lib/types/order';
+import { OrderFormData, CARGO_TYPES } from '../../lib/types/order';
 import { validateOrderForm, hasValidationErrors, ValidationErrors } from '../../utils/validation';
 import { databaseService } from '../../lib/services/pocketbase.service';
 import { useLanguage } from '../../lib/i18n/LanguageContext';
-import { formatString } from '../../lib/i18n/translations';
 
 export default function OrderFormScreen() {
   const router = useRouter();
@@ -28,7 +27,7 @@ export default function OrderFormScreen() {
   const [errors, setErrors] = useState<ValidationErrors>({});
 
   const [formData, setFormData] = useState<OrderFormData>({
-    client_article: '',
+    customer_name: '',
     weight: '',
     dimension_x: '',
     dimension_y: '',
@@ -72,7 +71,7 @@ export default function OrderFormScreen() {
       const cubicMeters = (dimX * dimY * dimZ) / 1000000;
 
       const orderData = {
-        client_article: formData.client_article,
+        customer_name: formData.customer_name,
         weight: parseFloat(formData.weight),
         dimension_x: dimX,
         dimension_y: dimY,
@@ -99,7 +98,7 @@ export default function OrderFormScreen() {
       });
 
       setFormData({
-        client_article: '',
+        customer_name: '',
         weight: '',
         dimension_x: '',
         dimension_y: '',
@@ -136,17 +135,47 @@ export default function OrderFormScreen() {
 
         <View style={styles.form}>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>{t.form.clientArticle} {t.form.required}</Text>
+            <Text style={styles.label}>{t.form.customerName} {t.form.required}</Text>
             <TextInput
-              style={[styles.input, errors.client_article && styles.inputError]}
-              value={formData.client_article}
-              onChangeText={(text) => updateField('client_article', text)}
-              placeholder={t.placeholders.clientArticle}
+              style={[styles.input, errors.customer_name && styles.inputError]}
+              value={formData.customer_name}
+              onChangeText={(text) => updateField('customer_name', text)}
+              placeholder={t.placeholders.customerName}
               placeholderTextColor="#9ca3af"
               editable={!loading}
             />
-            {errors.client_article && (
-              <Text style={styles.errorText}>{errors.client_article}</Text>
+            {errors.customer_name && (
+              <Text style={styles.errorText}>{errors.customer_name}</Text>
+            )}
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>{t.form.productName} {t.form.required}</Text>
+            <TextInput
+              style={[styles.input, errors.product_name && styles.inputError]}
+              value={formData.product_name}
+              onChangeText={(text) => updateField('product_name', text)}
+              placeholder={t.placeholders.productName}
+              placeholderTextColor="#9ca3af"
+              editable={!loading}
+            />
+            {errors.product_name && (
+              <Text style={styles.errorText}>{errors.product_name}</Text>
+            )}
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>{t.form.clientNumber} {t.form.required}</Text>
+            <TextInput
+              style={[styles.input, errors.client_number && styles.inputError]}
+              value={formData.client_number}
+              onChangeText={(text) => updateField('client_number', text)}
+              placeholder={t.placeholders.clientNumber}
+              placeholderTextColor="#9ca3af"
+              editable={!loading}
+            />
+            {errors.client_number && (
+              <Text style={styles.errorText}>{errors.client_number}</Text>
             )}
           </View>
 
@@ -215,21 +244,6 @@ export default function OrderFormScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>{t.form.productName} {t.form.required}</Text>
-            <TextInput
-              style={[styles.input, errors.product_name && styles.inputError]}
-              value={formData.product_name}
-              onChangeText={(text) => updateField('product_name', text)}
-              placeholder={t.placeholders.productName}
-              placeholderTextColor="#9ca3af"
-              editable={!loading}
-            />
-            {errors.product_name && (
-              <Text style={styles.errorText}>{errors.product_name}</Text>
-            )}
-          </View>
-
-          <View style={styles.inputGroup}>
             <Text style={styles.label}>{t.form.quantity} {t.form.required}</Text>
             <TextInput
               style={[styles.input, errors.quantity && styles.inputError]}
@@ -241,21 +255,6 @@ export default function OrderFormScreen() {
               editable={!loading}
             />
             {errors.quantity && <Text style={styles.errorText}>{errors.quantity}</Text>}
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>{t.form.clientNumber} {t.form.required}</Text>
-            <TextInput
-              style={[styles.input, errors.client_number && styles.inputError]}
-              value={formData.client_number}
-              onChangeText={(text) => updateField('client_number', text)}
-              placeholder={t.placeholders.clientNumber}
-              placeholderTextColor="#9ca3af"
-              editable={!loading}
-            />
-            {errors.client_number && (
-              <Text style={styles.errorText}>{errors.client_number}</Text>
-            )}
           </View>
 
           <View style={styles.inputGroup}>

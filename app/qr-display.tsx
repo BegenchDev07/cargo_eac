@@ -275,8 +275,8 @@ fetch('https://cloud.kuaimai.com/api/cloud/print/tsplTemplatePrint', {
         <Text style={styles.infoTitle}>{t.qr.orderInfo}</Text>
 
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>{t.form.clientArticle}:</Text>
-          <Text style={styles.infoValue}>{order.client_article}</Text>
+          <Text style={styles.infoLabel}>{t.form.customerName}:</Text>
+          <Text style={styles.infoValue}>{order.customer_name}</Text>
         </View>
 
         <View style={styles.infoRow}>

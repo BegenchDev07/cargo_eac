@@ -6,7 +6,7 @@ export interface Translations {
     subtitle: string;
   };
   form: {
-    clientArticle: string;
+    customerName: string;
     weight: string;
     dimensions: string;
     cubicMeters: string;
@@ -20,7 +20,7 @@ export interface Translations {
     cargoType: string;
   };
   placeholders: {
-    clientArticle: string;
+    customerName: string;
     weight: string;
     productName: string;
     quantity: string;
@@ -75,6 +75,12 @@ export interface Translations {
     title: string;
     empty: string;
     emptyHint: string;
+    edit: string;
+    save: string;
+    cancel: string;
+    editOrder: string;
+    editSuccess: string;
+    editError: string;
   };
   tabs: {
     insert: string;
@@ -147,12 +153,12 @@ export const translations: Record<Language, Translations> = {
       subtitle: 'Склад',
     },
     form: {
-      clientArticle: 'Артикул',
+      customerName: 'Имя клиента',
       weight: 'Вес (кг)',
       dimensions: 'Размеры (см)',
       cubicMeters: 'Объём (м³)',
       productName: 'Наименование',
-      quantity: 'Кол-во в коробке',
+      quantity: 'Количество коробок',
       clientNumber: 'Номер клиента',
       photos: 'Фотографии товара',
       submit: 'Создать QR-код',
@@ -161,7 +167,7 @@ export const translations: Record<Language, Translations> = {
       cargoType: 'Тип груза',
     },
     placeholders: {
-      clientArticle: 'Введите артикул клиента',
+      customerName: 'Введите имя клиента',
       weight: '0.00',
       productName: 'Введите наименование товара',
       quantity: '0',
@@ -216,6 +222,12 @@ export const translations: Record<Language, Translations> = {
       title: 'Заказы',
       empty: 'Заказов пока нет',
       emptyHint: 'Создайте первый заказ во вкладке Вставка',
+      edit: 'Редактировать',
+      save: 'Сохранить',
+      cancel: 'Отмена',
+      editOrder: 'Редактировать заказ',
+      editSuccess: 'Заказ обновлён',
+      editError: 'Не удалось обновить заказ',
     },
     tabs: {
       insert: 'Вставка',
@@ -286,12 +298,12 @@ export const translations: Record<Language, Translations> = {
       subtitle: '仓库',
     },
     form: {
-      clientArticle: '货号',
+      customerName: '客户姓名',
       weight: '重量 (kg)',
       dimensions: '尺寸 (cm)',
       cubicMeters: '体积 (m³)',
       productName: '产品名称',
-      quantity: '箱内数量',
+      quantity: '箱数',
       clientNumber: '客户编号',
       photos: '产品照片',
       submit: '生成二维码',
@@ -300,7 +312,7 @@ export const translations: Record<Language, Translations> = {
       cargoType: '货物类型',
     },
     placeholders: {
-      clientArticle: '请输入货号',
+      customerName: '请输入客户姓名',
       weight: '0.00',
       productName: '请输入产品名称',
       quantity: '0',
@@ -355,6 +367,12 @@ export const translations: Record<Language, Translations> = {
       title: '订单',
       empty: '还没有订单',
       emptyHint: '在插入标签中创建您的第一个订单',
+      edit: '编辑',
+      save: '保存',
+      cancel: '取消',
+      editOrder: '编辑订单',
+      editSuccess: '订单已更新',
+      editError: '无法更新订单',
     },
     tabs: {
       insert: '插入',

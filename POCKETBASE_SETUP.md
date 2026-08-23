@@ -18,6 +18,7 @@ Create a collection named `orders` with the following fields:
 |-----------------|------------|----------|-------------------|
 | order_id        | Text       | Yes      | -                 |
 | client_article  | Text       | Yes      | -                 |
+| customer_name   | Text       | Yes      | -                 |
 | weight          | Number     | Yes      | Min: 0            |
 | size            | Text       | Yes      | -                 |
 | product_name    | Text       | Yes      | -                 |

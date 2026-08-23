@@ -1,9 +1,9 @@
 import PocketBase from 'pocketbase';
+import { Platform } from 'react-native';
 import { DatabaseService, UpdateOrderInput } from './database.interface';
 import { WarehouseOrder } from '../types/order';
 import { Freight, CreateFreightInput } from '../types/freight';
 import Constants from 'expo-constants';
-import * as FileSystem from 'expo-file-system';
 
 const pocketbaseUrl = Constants.expoConfig?.extra?.EXPO_PUBLIC_POCKETBASE_URL || process.env.EXPO_PUBLIC_POCKETBASE_URL || 'http://120.55.49.54';
 
@@ -25,12 +25,53 @@ class PocketBaseService implements DatabaseService {
     );
   }
 
-  async createOrder(order: Omit<WarehouseOrder, 'id' | 'created_at'>, images?: string[]): Promise<WarehouseOrder> {
+  private async generateClientArticle(): Promise<string> {
+    const today = new Date();
+    const dd = String(today.getDate()).padStart(2, '0');
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const yy = String(today.getFullYear()).slice(-2);
+    const prefix = `${dd}${mm}${yy}`;
+
+    try {
+      const startOfDay = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())).toISOString();
+      const endOfDay = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate() + 1)).toISOString();
+
+      const records = await pb.collection('orders').getFullList({
+        filter: `client_article ~ "${prefix}-" && created >= "${startOfDay}" && created < "${endOfDay}"`,
+        sort: '-client_article',
+        limit: 1,
+      });
+
+      let nextCounter = 1;
+      if (records.length > 0) {
+        const lastArticle = records[0].client_article as string;
+        const match = lastArticle.match(/-(\d{4})$/);
+        if (match) {
+          nextCounter = parseInt(match[1], 10) + 1;
+        }
+      }
+
+      return `${prefix}-${String(nextCounter).padStart(4, '0')}`;
+    } catch (error) {
+      console.error('Failed to generate client article:', error);
+      return `${prefix}-${String(Date.now()).slice(-4)}`;
+    }
+  }
+
+  private async uriToFile(uri: string, fileName: string, type: string): Promise<File> {
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    return new File([blob], fileName, { type: type || blob.type || 'image/jpeg' });
+  }
+
+  async createOrder(order: Omit<WarehouseOrder, 'id' | 'created_at' | 'client_article'>, images?: string[]): Promise<WarehouseOrder> {
     try {
       const formData = new FormData();
+      const clientArticle = await this.generateClientArticle();
 
       formData.append('order_id', `order_${Date.now()}`);
-      formData.append('client_article', order.client_article);
+      formData.append('client_article', clientArticle);
+      formData.append('customer_name', order.customer_name || '');
       formData.append('weight', order.weight.toString());
       formData.append('cubic_meters', order.cubic_meters.toString());
       formData.append('product_name', order.product_name);
@@ -52,13 +93,18 @@ class PocketBaseService implements DatabaseService {
             'png': 'image/png',
             'gif': 'image/gif',
             'webp': 'image/webp',
-          }          
+          };
 
-          formData.append('pictures', {
-            uri: images[i],
-            name: fileName,
-            type: mimeTypes[fileExt]
-          }as any);
+          if (Platform.OS === 'web') {
+            const file = await this.uriToFile(imageUri, fileName, mimeTypes[fileExt] || 'image/jpeg');
+            formData.append('pictures', file);
+          } else {
+            formData.append('pictures', {
+              uri: imageUri,
+              name: fileName,
+              type: mimeTypes[fileExt] || 'image/jpeg',
+            } as any);
+          }
         }
       }
 
@@ -69,6 +115,7 @@ class PocketBaseService implements DatabaseService {
       return {
         id: record.id,
         client_article: record.client_article,
+        customer_name: record.customer_name,
         weight: record.weight,
         cubic_meters: record.cubic_meters,
         product_name: record.product_name,
@@ -97,6 +144,7 @@ class PocketBaseService implements DatabaseService {
       return {
         id: record.id,
         client_article: record.client_article,
+        customer_name: record.customer_name,
         weight: record.weight,
         cubic_meters: record.cubic_meters,
         product_name: record.product_name,
@@ -126,6 +174,7 @@ class PocketBaseService implements DatabaseService {
       const items = resultList.items.map((record) => ({
         id: record.id,
         client_article: record.client_article,
+        customer_name: record.customer_name,
         weight: record.weight,
         cubic_meters: record.cubic_meters,
         product_name: record.product_name,
@@ -156,6 +205,7 @@ class PocketBaseService implements DatabaseService {
       const updateData: Record<string, any> = {};
 
       if (order.client_article !== undefined) updateData.client_article = order.client_article;
+      if (order.customer_name !== undefined) updateData.customer_name = order.customer_name;
       if (order.weight !== undefined) updateData.weight = order.weight;
       if (order.cubic_meters !== undefined) updateData.cubic_meters = order.cubic_meters;
       if (order.product_name !== undefined) updateData.product_name = order.product_name;
@@ -173,6 +223,7 @@ class PocketBaseService implements DatabaseService {
       return {
         id: record.id,
         client_article: record.client_article,
+        customer_name: record.customer_name,
         weight: record.weight,
         cubic_meters: record.cubic_meters,
         product_name: record.product_name,

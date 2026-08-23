@@ -4,7 +4,7 @@ import { Freight, CreateFreightInput } from '../types/freight';
 export type UpdateOrderInput = Partial<Omit<WarehouseOrder, 'id' | 'created_at' | 'pictures' | 'freight_number'>>;
 
 export interface DatabaseService {
-  createOrder(order: Omit<WarehouseOrder, 'id' | 'created_at'>, images?: string[]): Promise<WarehouseOrder>;
+  createOrder(order: Omit<WarehouseOrder, 'id' | 'created_at' | 'client_article'>, images?: string[]): Promise<WarehouseOrder>;
   getOrder(id: string): Promise<WarehouseOrder | null>;
   listOrders(page?: number, perPage?: number): Promise<{ items: WarehouseOrder[], totalPages: number, totalItems: number }>;
   updateOrder(id: string, order: UpdateOrderInput): Promise<WarehouseOrder | null>;

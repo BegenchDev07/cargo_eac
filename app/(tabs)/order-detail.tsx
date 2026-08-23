@@ -14,11 +14,12 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import QRCode from 'react-native-qrcode-svg';
 import * as Print from 'expo-print';
 import md5 from 'md5';
-import { Printer, ArrowLeft, CheckCircle } from 'lucide-react-native';
+import { Printer, ArrowLeft, CheckCircle, Pencil } from 'lucide-react-native';
 import { WarehouseOrder } from '../../lib/types/order';
 import { databaseService } from '../../lib/services/pocketbase.service';
 import { generateQRData, formatOrderDate } from '../../utils/qr-generator';
 import { useLanguage } from '../../lib/i18n/LanguageContext';
+import OrderEditModal from '../../components/OrderEditModal';
 
 const { width } = Dimensions.get('window');
 
@@ -30,6 +31,7 @@ export default function OrderDetailScreen() {
   const [qrData, setQrData] = useState<string>('');
   const [printing, setPrinting] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [editModalVisible, setEditModalVisible] = useState(false);
 
   useEffect(() => {
     loadOrder();
@@ -104,6 +106,14 @@ export default function OrderDetailScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOrderSaved = (updatedOrder: WarehouseOrder) => {
+    setOrder(updatedOrder);
+    const qrString = generateQRData(updatedOrder);
+    setQrData(qrString);
+    setEditModalVisible(false);
+    Alert.alert(t.orders.editSuccess);
   };
 
 
@@ -305,8 +315,8 @@ fetch('https://cloud.kuaimai.com/api/cloud/print/tsplTemplatePrint', {
           <Text style={styles.sectionTitle}>{t.qr.orderInfo}</Text>
 
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>{t.form.clientArticle}</Text>
-            <Text style={styles.infoValue}>{order.client_article}</Text>
+            <Text style={styles.infoLabel}>{t.form.customerName}</Text>
+            <Text style={styles.infoValue}>{order.customer_name}</Text>
           </View>
 
           <View style={styles.infoRow}>
@@ -359,6 +369,13 @@ fetch('https://cloud.kuaimai.com/api/cloud/print/tsplTemplatePrint', {
         )}
 
         <TouchableOpacity
+          style={styles.editButton}
+          onPress={() => setEditModalVisible(true)}>
+          <Pencil color="#FFFFFF" size={24} />
+          <Text style={styles.editButtonText}>{t.orders.edit}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
           style={[styles.printButton, printing && styles.printButtonDisabled]}
           onPress={handlePrint}
           disabled={printing}>
@@ -371,6 +388,13 @@ fetch('https://cloud.kuaimai.com/api/cloud/print/tsplTemplatePrint', {
             </>
           )}
         </TouchableOpacity>
+
+        <OrderEditModal
+          visible={editModalVisible}
+          order={order}
+          onClose={() => setEditModalVisible(false)}
+          onSaved={handleOrderSaved}
+        />
       </ScrollView>
     </View>
   );
@@ -542,6 +566,26 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   printButtonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    backgroundColor: '#059669',
+    paddingVertical: 16,
+    borderRadius: 12,
+    marginTop: 8,
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  editButtonText: {
     color: '#FFFFFF',
     fontSize: 17,
     fontWeight: '600',

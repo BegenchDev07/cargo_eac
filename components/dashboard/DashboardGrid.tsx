@@ -3,7 +3,11 @@ import { View, Text, StyleSheet, TouchableOpacity, Linking, Platform } from 'rea
 import { LayoutGrid, ExternalLink } from 'lucide-react-native';
 import { useLanguage } from '../../lib/i18n/LanguageContext';
 
-export default function DashboardGrid() {
+interface DashboardGridProps {
+  freightId?: string;
+}
+
+export default function DashboardGrid({ freightId }: DashboardGridProps) {
   const { t } = useLanguage();
 
   const handleOpenBrowser = () => {

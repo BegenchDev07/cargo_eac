@@ -2,7 +2,7 @@ import { OrderFormData } from '../lib/types/order';
 import { Translations } from '../lib/i18n/translations';
 
 export interface ValidationErrors {
-  client_article?: string;
+  customer_name?: string;
   weight?: string;
   dimension_x?: string;
   dimension_y?: string;
@@ -17,8 +17,8 @@ export interface ValidationErrors {
 export const validateOrderForm = (formData: OrderFormData, t: Translations): ValidationErrors => {
   const errors: ValidationErrors = {};
 
-  if (!formData.client_article.trim()) {
-    errors.client_article = t.validation.required;
+  if (!formData.customer_name.trim()) {
+    errors.customer_name = t.validation.required;
   }
 
   if (!formData.weight.trim()) {

@@ -10,7 +10,8 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Truck, Plus, RefreshCw, ChevronDown, ChevronUp, Package } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import { Truck, Plus, RefreshCw } from 'lucide-react-native';
 import { databaseService } from '../../lib/services/pocketbase.service';
 import { Freight } from '../../lib/types/freight';
 import { WarehouseOrder } from '../../lib/types/order';
@@ -18,11 +19,11 @@ import { calculateOrderPrice, formatPrice } from '../../utils/pricing';
 import { useLanguage } from '../../lib/i18n/LanguageContext';
 
 export default function FreightsScreen() {
+  const router = useRouter();
   const { t } = useLanguage();
   const [freights, setFreights] = useState<Freight[]>([]);
   const [orders, setOrders] = useState<WarehouseOrder[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedFreightId, setExpandedFreightId] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [newLoadDate, setNewLoadDate] = useState(new Date().toISOString().slice(0, 16));
   const [newNotes, setNewNotes] = useState('');
@@ -81,8 +82,11 @@ export default function FreightsScreen() {
     }
   };
 
-  const toggleExpand = (freightId: string) => {
-    setExpandedFreightId((prev) => (prev === freightId ? null : freightId));
+  const handleFreightPress = (freightId: string) => {
+    router.push({
+      pathname: '/(tabs)/freight-detail',
+      params: { freightId },
+    });
   };
 
   const handleUpdateStatus = async (freightId: string, status: Freight['status']) => {
@@ -136,13 +140,14 @@ export default function FreightsScreen() {
         ) : (
           freights.map((freight) => {
             const freightOrders = getOrdersByFreight(freight.id!);
-            const isExpanded = expandedFreightId === freight.id;
 
             return (
-              <View key={freight.id} style={styles.freightCard}>
-                <TouchableOpacity
-                  style={styles.freightHeader}
-                  onPress={() => toggleExpand(freight.id!)}>
+              <TouchableOpacity
+                key={freight.id}
+                style={styles.freightCard}
+                onPress={() => handleFreightPress(freight.id!)}
+                activeOpacity={0.7}>
+                <View style={styles.freightHeader}>
                   <View style={styles.freightHeaderLeft}>
                     <Text style={styles.freightNumber}>{freight.freight_number}</Text>
                     <View style={styles.statusBadge}>
@@ -156,13 +161,8 @@ export default function FreightsScreen() {
                     <Text style={styles.freightTotal}>
                       {formatPrice(getFreightTotalPrice(freight.id!))}
                     </Text>
-                    {isExpanded ? (
-                      <ChevronUp size={20} color="#8E8E93" />
-                    ) : (
-                      <ChevronDown size={20} color="#8E8E93" />
-                    )}
                   </View>
-                </TouchableOpacity>
+                </View>
 
                 <View style={styles.freightInfo}>
                   <Text style={styles.freightDate}>
@@ -180,7 +180,9 @@ export default function FreightsScreen() {
                           status === 'closed' && freight.status === status && styles.statusButtonClosed,
                           status === 'shipped' && freight.status === status && styles.statusButtonShipped,
                         ]}
-                        onPress={() => handleUpdateStatus(freight.id!, status)}>
+                        onPress={() => {
+                          handleUpdateStatus(freight.id!, status);
+                        }}>
                         <Text
                           style={[
                             styles.statusButtonText,
@@ -192,31 +194,7 @@ export default function FreightsScreen() {
                     ))}
                   </View>
                 </View>
-
-                {isExpanded && (
-                  <View style={styles.ordersList}>
-                    {freightOrders.length === 0 ? (
-                      <Text style={styles.noOrdersText}>{t.freights.noOrders}</Text>
-                    ) : (
-                      freightOrders.map((order) => (
-                        <View key={order.id} style={styles.orderRow}>
-                          <Package size={16} color="#007AFF" />
-                          <View style={styles.orderInfo}>
-                            <Text style={styles.orderProduct}>{order.product_name}</Text>
-                            <Text style={styles.orderDetails}>
-                              {order.client_article} · {order.weight}kg ·{' '}
-                              {order.cubic_meters.toFixed(4)}m³
-                            </Text>
-                          </View>
-                          <Text style={styles.orderPrice}>
-                            {formatPrice(calculateOrderPrice(order.weight, order.cubic_meters))}
-                          </Text>
-                        </View>
-                      ))
-                    )}
-                  </View>
-                )}
-              </View>
+              </TouchableOpacity>
             );
           })
         )}

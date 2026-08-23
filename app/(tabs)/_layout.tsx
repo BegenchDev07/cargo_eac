@@ -63,6 +63,12 @@ export default function TabLayout() {
           href: null,
         }}
       />
+      <Tabs.Screen
+        name="freight-detail"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
