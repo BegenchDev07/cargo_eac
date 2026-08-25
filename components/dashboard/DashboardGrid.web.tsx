@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import {
   AllCommunityModule,
@@ -21,7 +20,7 @@ import {
 } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import * as XLSX from 'xlsx';
-import { RefreshCw, Download, Trash2, LayoutGrid } from 'lucide-react-native';
+import { RefreshCw, Download, Trash2, LayoutGrid, MinusCircle } from 'lucide-react-native';
 import { databaseService } from '../../lib/services/pocketbase.service';
 import { WarehouseOrder, CARGO_TYPES, CargoType } from '../../lib/types/order';
 import { Freight } from '../../lib/types/freight';
@@ -83,8 +82,8 @@ export default function DashboardGrid({ onError, freightId }: DashboardGridProps
   const [selectedFreightId, setSelectedFreightId] = useState<string>('');
   const [newFreightLoadDate, setNewFreightLoadDate] = useState<string>('');
   const [newFreightNotes, setNewFreightNotes] = useState<string>('');
-  const [exportMode, setExportMode] = useState<'all' | 'filtered' | 'selected'>('all');
   const [lightboxImages, setLightboxImages] = useState<string[] | null>(null);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
 
   const loadOrders = useCallback(async () => {
     setLoading(true);
@@ -97,6 +96,10 @@ export default function DashboardGrid({ onError, freightId }: DashboardGridProps
         items = items.filter((order) => !order.freight_id);
       }
       setOrders(items);
+      // Clear selection on refresh: getRowId makes AG Grid preserve checkbox
+      // selection across rowData updates, so deselect explicitly and reset state
+      gridApiRef.current?.deselectAll();
+      setSelectedIds(new Set());
     } catch (error) {
       console.error('Failed to load orders:', error);
       onError?.(t.dashboard.errorMessage);
@@ -105,12 +108,14 @@ export default function DashboardGrid({ onError, freightId }: DashboardGridProps
     }
   }, [freightId, onError, t]);
 
-  const loadFreights = useCallback(async () => {
+  const loadFreights = useCallback(async (): Promise<Freight[]> => {
     try {
       const items = await databaseService.listFreights();
       setFreights(items);
+      return items;
     } catch (error) {
       console.error('Failed to load freights:', error);
+      return [];
     }
   }, []);
 
@@ -138,15 +143,15 @@ export default function DashboardGrid({ onError, freightId }: DashboardGridProps
         filter: false,
       },
       {
-        field: 'id',
-        headerName: 'ID',
-        width: 90,
+        field: 'client_article',
+        headerName: t.dashboard.article,
+        width: 130,
         editable: false,
         sortable: true,
         filter: true,
       },
       {
-        field: 'customer_name',
+        field: 'client_name',
         headerName: t.form.customerName,
         flex: 1,
         minWidth: 140,
@@ -171,7 +176,7 @@ export default function DashboardGrid({ onError, freightId }: DashboardGridProps
         sortable: true,
         filter: 'agNumberColumnFilter',
         valueParser: (params) => {
-          const parsed = parseFloat(params.newValue);
+          const parsed = parseFloat(String(params.newValue).replaceAll(',', '.'));
           return isNaN(parsed) ? params.oldValue : parsed;
         },
       },
@@ -240,18 +245,6 @@ export default function DashboardGrid({ onError, freightId }: DashboardGridProps
         },
         valueFormatter: (params) => formatPrice(params.value as number),
       },
-      ...(freightId
-        ? []
-        : [
-            {
-              field: 'freight_number' as const,
-              headerName: t.dashboard.freightNumber,
-              width: 130,
-              editable: false,
-              sortable: true,
-              filter: true,
-            },
-          ]),
       {
         field: 'date',
         headerName: t.form.date,
@@ -272,16 +265,6 @@ export default function DashboardGrid({ onError, freightId }: DashboardGridProps
         },
       },
       {
-        field: 'created_at',
-        headerName: 'Created',
-        width: 160,
-        editable: false,
-        sortable: true,
-        filter: true,
-        valueFormatter: (params) =>
-          params.value ? new Date(params.value).toLocaleString() : '',
-      },
-      {
         field: 'pictures',
         headerName: t.form.photos,
         width: 90,
@@ -294,7 +277,7 @@ export default function DashboardGrid({ onError, freightId }: DashboardGridProps
         },
       },
     ],
-    [freightId, t]
+    [t]
   );
 
   const defaultColDef = useMemo<ColDef<WarehouseOrder>>(
@@ -372,25 +355,17 @@ export default function DashboardGrid({ onError, freightId }: DashboardGridProps
   }, []);
 
   const handleExportExcel = useCallback(() => {
-    let rowsToExport: WarehouseOrder[] = [];
-
-    if (exportMode === 'all') {
-      rowsToExport = orders;
-    } else if (exportMode === 'filtered') {
-      gridApiRef.current?.forEachNodeAfterFilter((node) => {
-        if (node.data) rowsToExport.push(node.data);
-      });
-    } else if (exportMode === 'selected') {
-      gridApiRef.current?.forEachNode((node) => {
-        if (node.isSelected() && node.data) rowsToExport.push(node.data);
-      });
-    }
+    // Export the selected rows when any are selected, otherwise everything.
+    const selectedOnly = selectedIds.size > 0;
+    const rowsToExport = selectedOnly
+      ? orders.filter((order) => order.id != null && selectedIds.has(order.id))
+      : orders;
 
     if (rowsToExport.length === 0) return;
 
     const exportRows = rowsToExport.map((order) => ({
-      ID: order.id,
-      [t.form.customerName]: order.customer_name,
+      [t.dashboard.article]: order.client_article,
+      [t.form.customerName]: order.client_name,
       [t.form.productName]: order.product_name,
       [t.form.weight]: order.weight,
       [t.form.cubicMeters]: order.cubic_meters,
@@ -404,7 +379,6 @@ export default function DashboardGrid({ onError, freightId }: DashboardGridProps
       ),
       [t.dashboard.freightNumber]: order.freight_number || '',
       [t.form.date]: order.date ? new Date(order.date).toLocaleString() : '',
-      Created: order.created_at ? new Date(order.created_at).toLocaleString() : '',
       [t.form.photos]: order.pictures?.length || 0,
     }));
 
@@ -412,20 +386,20 @@ export default function DashboardGrid({ onError, freightId }: DashboardGridProps
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Orders');
 
-    const suffix = exportMode === 'all' ? 'all' : exportMode;
+    const suffix = selectedOnly ? 'selected' : 'all';
     const fileName = `orders_${suffix}_${new Date().toISOString().slice(0, 10)}.xlsx`;
     XLSX.writeFile(workbook, fileName);
-  }, [exportMode, orders, t]);
+  }, [orders, selectedIds, t]);
 
   const handleOpenAssignFreight = useCallback(async () => {
     if (selectedIds.size === 0) return;
-    await loadFreights();
+    const loadedFreights = await loadFreights();
     setFreightModalMode('existing');
-    setSelectedFreightId(freights[0]?.id || '');
+    setSelectedFreightId(loadedFreights[0]?.id || '');
     setNewFreightLoadDate(new Date().toISOString().slice(0, 16));
     setNewFreightNotes('');
     setFreightModalVisible(true);
-  }, [freights, loadFreights, selectedIds.size]);
+  }, [loadFreights, selectedIds.size]);
 
   const handleAssignExistingFreight = useCallback(async () => {
     if (!selectedFreightId || selectedIds.size === 0) return;
@@ -463,30 +437,35 @@ export default function DashboardGrid({ onError, freightId }: DashboardGridProps
 
   const handleDeleteSelected = useCallback(() => {
     if (selectedIds.size === 0) return;
+    // Alert.alert is a no-op on react-native-web, so use an inline confirm modal
+    setDeleteConfirmVisible(true);
+  }, [selectedIds.size]);
 
-    Alert.alert(
-      t.dashboard.deleteConfirmTitle,
-      t.dashboard.deleteConfirmMessage,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await Promise.all(
-                Array.from(selectedIds).map((id) => databaseService.deleteOrder(id))
-              );
-              setSelectedIds(new Set());
-              loadOrders();
-            } catch (error) {
-              console.error('Failed to delete orders:', error);
-              onError?.(t.dashboard.deleteError);
-            }
-          },
-        },
-      ]
-    );
+  const handleConfirmDelete = useCallback(async () => {
+    setDeleteConfirmVisible(false);
+    try {
+      await Promise.all(
+        Array.from(selectedIds).map((id) => databaseService.deleteOrder(id))
+      );
+      setSelectedIds(new Set());
+      loadOrders();
+    } catch (error) {
+      console.error('Failed to delete orders:', error);
+      onError?.(t.dashboard.deleteError);
+    }
+  }, [loadOrders, onError, selectedIds, t]);
+
+  const handleRemoveFromFreight = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+
+    try {
+      await databaseService.unassignOrdersFromFreight(Array.from(selectedIds));
+      setSelectedIds(new Set());
+      loadOrders();
+    } catch (error) {
+      console.error('Failed to remove orders from freight:', error);
+      onError?.(t.dashboard.removeFromFreightError);
+    }
   }, [loadOrders, onError, selectedIds, t]);
 
   const currentFreight = useMemo(
@@ -529,17 +508,12 @@ export default function DashboardGrid({ onError, freightId }: DashboardGridProps
             <RefreshCw size={18} color="#007AFF" style={loading ? styles.spinning : undefined} />
             <Text style={styles.actionText}>{t.dashboard.refresh}</Text>
           </TouchableOpacity>
-          <select
-            style={styles.exportModeSelect}
-            value={exportMode}
-            onChange={(e) => setExportMode(e.target.value as 'all' | 'filtered' | 'selected')}>
-            <option value="all">{t.dashboard.exportAll}</option>
-            <option value="filtered">{t.dashboard.exportFiltered}</option>
-            <option value="selected">{t.dashboard.exportSelected}</option>
-          </select>
           <TouchableOpacity style={styles.actionButton} onPress={handleExportExcel}>
             <Download size={18} color="#007AFF" />
-            <Text style={styles.actionText}>{t.dashboard.exportExcel}</Text>
+            <Text style={styles.actionText}>
+              {t.dashboard.exportExcel}
+              {selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
+            </Text>
           </TouchableOpacity>
           {!freightId && (
             <>
@@ -573,6 +547,22 @@ export default function DashboardGrid({ onError, freightId }: DashboardGridProps
               </TouchableOpacity>
             </>
           )}
+          {freightId && (
+            <TouchableOpacity
+              style={[styles.actionButton, selectedIds.size === 0 && styles.actionButtonDisabled]}
+              onPress={handleRemoveFromFreight}
+              disabled={selectedIds.size === 0}>
+              <MinusCircle size={18} color={selectedIds.size === 0 ? '#9ca3af' : '#dc2626'} />
+              <Text
+                style={[
+                  styles.actionText,
+                  selectedIds.size === 0 && styles.actionTextDisabled,
+                ]}>
+                {t.dashboard.removeFromFreight}
+                {selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -583,7 +573,7 @@ export default function DashboardGrid({ onError, freightId }: DashboardGridProps
             <Text style={styles.loadingText}>{t.dashboard.loading}</Text>
           </View>
         ) : (
-          <div className="ag-theme-alpine" style={{ width: '100%', height: '100%' }}>
+          <div style={{ width: '100%', height: '100%' }}>
             <AgGridReact<WarehouseOrder>
               theme={theme}
               rowData={orders}
@@ -686,13 +676,36 @@ export default function DashboardGrid({ onError, freightId }: DashboardGridProps
                 <Text style={styles.modalButtonSecondaryText}>{t.dashboard.cancel || 'Cancel'}</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.modalButton}
+                style={[
+                  styles.modalButton,
+                  freightModalMode === 'existing' && !selectedFreightId && styles.modalButtonDisabled,
+                ]}
                 onPress={
                   freightModalMode === 'existing'
                     ? handleAssignExistingFreight
                     : handleCreateAndAssignFreight
-                }>
+                }
+                disabled={freightModalMode === 'existing' && !selectedFreightId}>
                 <Text style={styles.modalButtonText}>{t.dashboard.confirm || 'Confirm'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {deleteConfirmVisible && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>{t.dashboard.deleteConfirmTitle}</Text>
+            <Text style={styles.modalLabel}>{t.dashboard.deleteConfirmMessage}</Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonSecondary]}
+                onPress={() => setDeleteConfirmVisible(false)}>
+                <Text style={styles.modalButtonSecondaryText}>{t.dashboard.cancel}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalButton} onPress={handleConfirmDelete}>
+                <Text style={styles.modalButtonText}>{t.dashboard.confirm}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -817,16 +830,6 @@ const styles = StyleSheet.create({
   actionTextDisabled: {
     color: '#9ca3af',
   },
-  exportModeSelect: {
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E5E5EA',
-    backgroundColor: '#FFFFFF',
-    fontSize: 14,
-    color: '#1f2937',
-  },
   gridWrapper: {
     flex: 1,
     overflow: 'hidden',
@@ -940,6 +943,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 8,
+  },
+  modalButtonDisabled: {
+    opacity: 0.6,
   },
   modalButtonSecondary: {
     backgroundColor: '#F2F2F7',

@@ -180,7 +180,10 @@ export default function FreightsScreen() {
                           status === 'closed' && freight.status === status && styles.statusButtonClosed,
                           status === 'shipped' && freight.status === status && styles.statusButtonShipped,
                         ]}
-                        onPress={() => {
+                        onPress={(event) => {
+                          // On web the press bubbles to the card's TouchableOpacity
+                          // and triggers navigation; stop it (no-op guard for native)
+                          event.stopPropagation?.();
                           handleUpdateStatus(freight.id!, status);
                         }}>
                         <Text

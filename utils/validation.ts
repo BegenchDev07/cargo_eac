@@ -2,7 +2,7 @@ import { OrderFormData } from '../lib/types/order';
 import { Translations } from '../lib/i18n/translations';
 
 export interface ValidationErrors {
-  customer_name?: string;
+  client_name?: string;
   weight?: string;
   dimension_x?: string;
   dimension_y?: string;
@@ -17,15 +17,15 @@ export interface ValidationErrors {
 export const validateOrderForm = (formData: OrderFormData, t: Translations): ValidationErrors => {
   const errors: ValidationErrors = {};
 
-  if (!formData.customer_name.trim()) {
-    errors.customer_name = t.validation.required;
+  if (!formData.client_name.trim()) {
+    errors.client_name = t.validation.required;
   }
 
   if (!formData.weight.trim()) {
     errors.weight = t.validation.required;
   } else {
     const weightNum = parseFloat(formData.weight);
-    if (isNaN(weightNum) || weightNum <= 0) {
+    if (!/^\d+(\.\d+)?$/.test(formData.weight.trim()) || isNaN(weightNum) || weightNum <= 0) {
       errors.weight = t.validation.invalidWeight;
     }
   }
@@ -65,7 +65,7 @@ export const validateOrderForm = (formData: OrderFormData, t: Translations): Val
     errors.quantity = t.validation.required;
   } else {
     const quantityNum = parseInt(formData.quantity, 10);
-    if (isNaN(quantityNum) || quantityNum <= 0 || !Number.isInteger(quantityNum)) {
+    if (!/^\d+$/.test(formData.quantity.trim()) || isNaN(quantityNum) || quantityNum <= 0 || !Number.isInteger(quantityNum)) {
       errors.quantity = t.validation.invalidQuantity;
     }
   }

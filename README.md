@@ -118,7 +118,7 @@ npm run dev
 ### warehouse_orders table
 - `id` (UUID) - Primary key
 - `client_article` (text) - Auto-generated order article (DDMMYY-NNNN)
-- `customer_name` (text) - Customer name
+- `client_name` (text) - Customer name
 - `weight` (decimal) - Product weight in kg
 - `size` (text) - Product size
 - `product_name` (text) - Product name

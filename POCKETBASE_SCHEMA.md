@@ -1,5 +1,12 @@
 # PocketBase Schema for Cargo Types & Freights
 
+> The full, authoritative schema for the `orders` and `freights` collections (as actually used by
+> `lib/services/pocketbase.service.ts`) is documented in `POCKETBASE_SETUP.md`. This file only
+> covers the later additions: `cargo_type`, the `freight` relation, and the `freights` collection.
+> Note: the code does **not** use a `size` or `image_urls` field or an `order_images` collection;
+> order photos are stored as files in the `pictures` field on `orders`, and `uploadImage()` in the
+> service is currently an unused stub that returns the local URI unchanged.
+
 ## 1. Update `orders` collection
 
 Add these two fields:
@@ -28,7 +35,8 @@ Create a new collection with these fields:
 ### `freight_number`
 - **Type:** Text
 - **Required:** Yes
-- **Unique:** Yes
+- **Unique:** Yes — required: the app generates numbers client-side and relies on the server
+  rejecting duplicates to detect collisions and retry (same for `orders.client_article`).
 
 ### `load_date`
 - **Type:** DateTime

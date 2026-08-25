@@ -5,7 +5,7 @@ export const CARGO_TYPES: CargoType[] = ['dangerous', 'liquid', 'brand', 'standa
 export interface WarehouseOrder {
   id?: string;
   client_article: string;
-  customer_name?: string;
+  client_name?: string;
   weight: number;
   cubic_meters: number;
   product_name: string;
@@ -21,7 +21,7 @@ export interface WarehouseOrder {
 }
 
 export interface OrderFormData {
-  customer_name: string;
+  client_name: string;
   weight: string;
   dimension_x: string;
   dimension_y: string;

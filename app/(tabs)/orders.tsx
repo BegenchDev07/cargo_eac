@@ -98,8 +98,12 @@ export default function OrdersScreen() {
 
       <View style={styles.orderDetails}>
         <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>{t.dashboard.article}:</Text>
+          <Text style={styles.detailValue}>{item.client_article}</Text>
+        </View>
+        <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>{t.form.customerName}:</Text>
-          <Text style={styles.detailValue}>{item.customer_name}</Text>
+          <Text style={styles.detailValue}>{item.client_name}</Text>
         </View>
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>{t.form.clientNumber}:</Text>

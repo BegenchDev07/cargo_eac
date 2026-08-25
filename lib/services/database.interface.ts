@@ -13,5 +13,6 @@ export interface DatabaseService {
   createFreight(input: CreateFreightInput): Promise<Freight>;
   updateFreight(id: string, input: Partial<Omit<Freight, 'id' | 'freight_number' | 'created_at'>>): Promise<Freight | null>;
   assignOrdersToFreight(orderIds: string[], freightId: string): Promise<void>;
+  unassignOrdersFromFreight(orderIds: string[]): Promise<void>;
   uploadImage(orderId: string, imageUri: string, index: number): Promise<string>;
 }

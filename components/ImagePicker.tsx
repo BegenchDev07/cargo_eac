@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, Image, ScrollView, StyleSheet, Alert, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, Image, ScrollView, StyleSheet, Alert, Platform, Modal } from 'react-native';
 import * as ImagePickerLib from 'expo-image-picker';
 import { Camera, ImageIcon, X } from 'lucide-react-native';
 import { useLanguage } from '../lib/i18n/LanguageContext';
@@ -14,6 +14,7 @@ interface ImagePickerProps {
 export default function ImagePicker({ images, onImagesChange, maxImages = 10 }: ImagePickerProps) {
   const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
+  const [previewUri, setPreviewUri] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -180,7 +181,9 @@ export default function ImagePicker({ images, onImagesChange, maxImages = 10 }: 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imageScroll}>
           {images.map((uri, index) => (
             <View key={index} style={styles.imageContainer}>
-              <Image source={{ uri }} style={styles.image} />
+              <TouchableOpacity activeOpacity={0.8} onPress={() => setPreviewUri(uri)}>
+                <Image source={{ uri }} style={styles.image} />
+              </TouchableOpacity>
               <TouchableOpacity
                 style={styles.removeButton}
                 onPress={() => removeImage(index)}
@@ -191,6 +194,27 @@ export default function ImagePicker({ images, onImagesChange, maxImages = 10 }: 
           ))}
         </ScrollView>
       )}
+
+      <Modal
+        visible={previewUri !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPreviewUri(null)}
+      >
+        <View style={styles.previewOverlay}>
+          <TouchableOpacity
+            style={styles.previewBackdrop}
+            activeOpacity={1}
+            onPress={() => setPreviewUri(null)}
+          />
+          {previewUri && (
+            <Image source={{ uri: previewUri }} style={styles.previewImage} resizeMode="contain" />
+          )}
+          <TouchableOpacity style={styles.previewCloseButton} onPress={() => setPreviewUri(null)}>
+            <X color="#fff" size={24} />
+          </TouchableOpacity>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -253,5 +277,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#ef4444',
     borderRadius: 12,
     padding: 4,
+  },
+  previewOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  previewImage: {
+    width: '90%',
+    height: '80%',
+  },
+  previewCloseButton: {
+    position: 'absolute',
+    top: 48,
+    right: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 20,
+    padding: 8,
   },
 });

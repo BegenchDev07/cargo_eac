@@ -33,8 +33,9 @@ class PocketBaseService implements DatabaseService {
     const prefix = `${dd}${mm}${yy}`;
 
     try {
-      const startOfDay = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())).toISOString();
-      const endOfDay = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate() + 1)).toISOString();
+      // Use local-day boundaries so the filter matches the local date in the prefix
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString();
 
       const records = await pb.collection('orders').getFullList({
         filter: `client_article ~ "${prefix}-" && created >= "${startOfDay}" && created < "${endOfDay}"`,
@@ -64,71 +65,92 @@ class PocketBaseService implements DatabaseService {
     return new File([blob], fileName, { type: type || blob.type || 'image/jpeg' });
   }
 
+  private isUniqueConstraintError(error: any, field: string): boolean {
+    const data = error?.response?.data ?? error?.data?.data ?? error?.data;
+    return error?.status === 400 && !!data?.[field];
+  }
+
   async createOrder(order: Omit<WarehouseOrder, 'id' | 'created_at' | 'client_article'>, images?: string[]): Promise<WarehouseOrder> {
+    const maxAttempts = 3;
+
     try {
-      const formData = new FormData();
-      const clientArticle = await this.generateClientArticle();
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const formData = new FormData();
+        const clientArticle = await this.generateClientArticle();
 
-      formData.append('order_id', `order_${Date.now()}`);
-      formData.append('client_article', clientArticle);
-      formData.append('customer_name', order.customer_name || '');
-      formData.append('weight', order.weight.toString());
-      formData.append('cubic_meters', order.cubic_meters.toString());
-      formData.append('product_name', order.product_name);
-      formData.append('quantity', order.quantity.toString());
-      formData.append('client_number', order.client_number);
-      formData.append('cargo_type', order.cargo_type || 'standard');
-      formData.append('date', new Date().toISOString());
-      formData.append('qr_data', JSON.stringify(order.qr_data || {}));
+        formData.append('order_id', `order_${Date.now()}`);
+        formData.append('client_article', clientArticle);
+        formData.append('client_name', order.client_name || '');
+        formData.append('weight', order.weight.toString());
+        formData.append('cubic_meters', order.cubic_meters.toString());
+        formData.append('product_name', order.product_name);
+        formData.append('quantity', order.quantity.toString());
+        formData.append('client_number', order.client_number);
+        formData.append('cargo_type', order.cargo_type || 'standard');
+        formData.append('date', new Date().toISOString());
+        formData.append('qr_data', JSON.stringify(order.qr_data || {}));
 
-      if (images && images.length > 0) {
-        for (let i = 0; i < images.length; i++) {
-          const imageUri = images[i];
-          const fileExt = imageUri.split('.').pop()?.toLowerCase() || 'jpg';
-          const fileName = `image_${i}_${Date.now()}.${fileExt}`;
+        if (images && images.length > 0) {
+          for (let i = 0; i < images.length; i++) {
+            const imageUri = images[i];
+            const fileExt = imageUri.split('.').pop()?.toLowerCase() || 'jpg';
+            const fileName = `image_${i}_${Date.now()}.${fileExt}`;
 
-          const mimeTypes: Record<string, string> = {
-            'jpg': 'image/jpeg',
-            'jpeg': 'image/jpeg',
-            'png': 'image/png',
-            'gif': 'image/gif',
-            'webp': 'image/webp',
-          };
+            const mimeTypes: Record<string, string> = {
+              'jpg': 'image/jpeg',
+              'jpeg': 'image/jpeg',
+              'png': 'image/png',
+              'gif': 'image/gif',
+              'webp': 'image/webp',
+            };
 
-          if (Platform.OS === 'web') {
-            const file = await this.uriToFile(imageUri, fileName, mimeTypes[fileExt] || 'image/jpeg');
-            formData.append('pictures', file);
-          } else {
-            formData.append('pictures', {
-              uri: imageUri,
-              name: fileName,
-              type: mimeTypes[fileExt] || 'image/jpeg',
-            } as any);
+            if (Platform.OS === 'web') {
+              const file = await this.uriToFile(imageUri, fileName, mimeTypes[fileExt] || 'image/jpeg');
+              formData.append('pictures', file);
+            } else {
+              formData.append('pictures', {
+                uri: imageUri,
+                name: fileName,
+                type: mimeTypes[fileExt] || 'image/jpeg',
+              } as any);
+            }
           }
+        }
+
+        try {
+          const record = await pb.collection('orders').create(formData, {
+            expand: 'freight',
+          });
+
+          return {
+            id: record.id,
+            client_article: record.client_article,
+            client_name: record.client_name,
+            weight: record.weight,
+            cubic_meters: record.cubic_meters,
+            product_name: record.product_name,
+            quantity: record.quantity,
+            client_number: record.client_number,
+            cargo_type: record.cargo_type,
+            freight_id: record.expand?.freight?.id,
+            freight_number: record.expand?.freight?.freight_number,
+            qr_data: record.qr_data,
+            pictures: this.mapRecordToPictures(record),
+            date: record.date,
+            created_at: record.created,
+          };
+        } catch (createError: any) {
+          // A unique index on client_article (see POCKETBASE_SETUP.md) makes the
+          // server reject collisions; regenerate the article and retry.
+          if (attempt < maxAttempts && this.isUniqueConstraintError(createError, 'client_article')) {
+            console.warn(`client_article collision (attempt ${attempt}), regenerating`);
+            continue;
+          }
+          throw createError;
         }
       }
 
-      const record = await pb.collection('orders').create(formData, {
-        expand: 'freight',
-      });
-
-      return {
-        id: record.id,
-        client_article: record.client_article,
-        customer_name: record.customer_name,
-        weight: record.weight,
-        cubic_meters: record.cubic_meters,
-        product_name: record.product_name,
-        quantity: record.quantity,
-        client_number: record.client_number,
-        cargo_type: record.cargo_type,
-        freight_id: record.expand?.freight?.id,
-        freight_number: record.expand?.freight?.freight_number,
-        qr_data: record.qr_data,
-        pictures: this.mapRecordToPictures(record),
-        date: record.date,
-        created_at: record.created,
-      };
+      throw new Error('Failed to generate a unique client article');
     } catch (error) {
       console.error('PocketBase create error:', error);
       throw new Error(`Failed to create order: ${error}`);
@@ -144,7 +166,7 @@ class PocketBaseService implements DatabaseService {
       return {
         id: record.id,
         client_article: record.client_article,
-        customer_name: record.customer_name,
+        client_name: record.client_name,
         weight: record.weight,
         cubic_meters: record.cubic_meters,
         product_name: record.product_name,
@@ -174,7 +196,7 @@ class PocketBaseService implements DatabaseService {
       const items = resultList.items.map((record) => ({
         id: record.id,
         client_article: record.client_article,
-        customer_name: record.customer_name,
+        client_name: record.client_name,
         weight: record.weight,
         cubic_meters: record.cubic_meters,
         product_name: record.product_name,
@@ -205,7 +227,7 @@ class PocketBaseService implements DatabaseService {
       const updateData: Record<string, any> = {};
 
       if (order.client_article !== undefined) updateData.client_article = order.client_article;
-      if (order.customer_name !== undefined) updateData.customer_name = order.customer_name;
+      if (order.client_name !== undefined) updateData.client_name = order.client_name;
       if (order.weight !== undefined) updateData.weight = order.weight;
       if (order.cubic_meters !== undefined) updateData.cubic_meters = order.cubic_meters;
       if (order.product_name !== undefined) updateData.product_name = order.product_name;
@@ -223,7 +245,7 @@ class PocketBaseService implements DatabaseService {
       return {
         id: record.id,
         client_article: record.client_article,
-        customer_name: record.customer_name,
+        client_name: record.client_name,
         weight: record.weight,
         cubic_meters: record.cubic_meters,
         product_name: record.product_name,
@@ -321,24 +343,40 @@ class PocketBaseService implements DatabaseService {
   }
 
   async createFreight(input: CreateFreightInput): Promise<Freight> {
+    const maxAttempts = 3;
+
     try {
-      const freightNumber = await this.generateFreightNumber();
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const freightNumber = await this.generateFreightNumber();
 
-      const record = await pb.collection('freights').create({
-        freight_number: freightNumber,
-        load_date: input.load_date,
-        notes: input.notes || '',
-        status: input.status || 'open',
-      });
+        try {
+          const record = await pb.collection('freights').create({
+            freight_number: freightNumber,
+            load_date: input.load_date,
+            notes: input.notes || '',
+            status: input.status || 'open',
+          });
 
-      return {
-        id: record.id,
-        freight_number: record.freight_number,
-        load_date: record.load_date,
-        notes: record.notes,
-        status: record.status,
-        created_at: record.created,
-      };
+          return {
+            id: record.id,
+            freight_number: record.freight_number,
+            load_date: record.load_date,
+            notes: record.notes,
+            status: record.status,
+            created_at: record.created,
+          };
+        } catch (createError: any) {
+          // A unique index on freight_number (see POCKETBASE_SETUP.md) makes the
+          // server reject collisions; regenerate the number and retry.
+          if (attempt < maxAttempts && this.isUniqueConstraintError(createError, 'freight_number')) {
+            console.warn(`freight_number collision (attempt ${attempt}), regenerating`);
+            continue;
+          }
+          throw createError;
+        }
+      }
+
+      throw new Error('Failed to generate a unique freight number');
     } catch (error) {
       console.error('PocketBase create freight error:', error);
       throw new Error(`Failed to create freight: ${error}`);
@@ -357,6 +395,20 @@ class PocketBaseService implements DatabaseService {
       throw new Error(`Failed to assign orders to freight: ${error}`);
     }
   }
+
+  async unassignOrdersFromFreight(orderIds: string[]): Promise<void> {
+    try {
+      await Promise.all(
+        orderIds.map((id) =>
+          pb.collection('orders').update(id, { freight: null })
+        )
+      );
+    } catch (error) {
+      console.error('PocketBase unassign orders from freight error:', error);
+      throw new Error(`Failed to unassign orders from freight: ${error}`);
+    }
+  }
+
 
   async uploadImage(orderId: string, imageUri: string, index: number): Promise<string> {
     return imageUri;

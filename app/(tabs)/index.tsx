@@ -27,7 +27,7 @@ export default function OrderFormScreen() {
   const [errors, setErrors] = useState<ValidationErrors>({});
 
   const [formData, setFormData] = useState<OrderFormData>({
-    customer_name: '',
+    client_name: '',
     weight: '',
     dimension_x: '',
     dimension_y: '',
@@ -71,7 +71,7 @@ export default function OrderFormScreen() {
       const cubicMeters = (dimX * dimY * dimZ) / 1000000;
 
       const orderData = {
-        customer_name: formData.customer_name,
+        client_name: formData.client_name,
         weight: parseFloat(formData.weight),
         dimension_x: dimX,
         dimension_y: dimY,
@@ -98,7 +98,7 @@ export default function OrderFormScreen() {
       });
 
       setFormData({
-        customer_name: '',
+        client_name: '',
         weight: '',
         dimension_x: '',
         dimension_y: '',
@@ -137,15 +137,15 @@ export default function OrderFormScreen() {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>{t.form.customerName} {t.form.required}</Text>
             <TextInput
-              style={[styles.input, errors.customer_name && styles.inputError]}
-              value={formData.customer_name}
-              onChangeText={(text) => updateField('customer_name', text)}
+              style={[styles.input, errors.client_name && styles.inputError]}
+              value={formData.client_name}
+              onChangeText={(text) => updateField('client_name', text)}
               placeholder={t.placeholders.customerName}
               placeholderTextColor="#9ca3af"
               editable={!loading}
             />
-            {errors.customer_name && (
-              <Text style={styles.errorText}>{errors.customer_name}</Text>
+            {errors.client_name && (
+              <Text style={styles.errorText}>{errors.client_name}</Text>
             )}
           </View>
 
@@ -184,10 +184,10 @@ export default function OrderFormScreen() {
             <TextInput
               style={[styles.input, errors.weight && styles.inputError]}
               value={formData.weight}
-              onChangeText={(text) => updateField('weight', text)}
+              onChangeText={(text) => updateField('weight', text.replaceAll(',', '.'))}
               placeholder={t.placeholders.weight}
               placeholderTextColor="#9ca3af"
-              keyboardType="decimal-pad"
+              keyboardType="default"
               editable={!loading}
             />
             {errors.weight && <Text style={styles.errorText}>{errors.weight}</Text>}
@@ -201,10 +201,10 @@ export default function OrderFormScreen() {
                 <TextInput
                   style={[styles.input, errors.dimension_x && styles.inputError]}
                   value={formData.dimension_x}
-                  onChangeText={(text) => updateField('dimension_x', text)}
+                  onChangeText={(text) => updateField('dimension_x', text.replaceAll(',', '.'))}
                   placeholder="0"
                   placeholderTextColor="#9ca3af"
-                  keyboardType="decimal-pad"
+                  keyboardType="default"
                   inputMode="decimal"
                   editable={!loading}
                 />
@@ -214,10 +214,10 @@ export default function OrderFormScreen() {
                 <TextInput
                   style={[styles.input, errors.dimension_y && styles.inputError]}
                   value={formData.dimension_y}
-                  onChangeText={(text) => updateField('dimension_y', text)}
+                  onChangeText={(text) => updateField('dimension_y', text.replaceAll(',', '.'))}
                   placeholder="0"
                   placeholderTextColor="#9ca3af"
-                  keyboardType="decimal-pad"
+                  keyboardType="default"
                   inputMode="decimal"
                   editable={!loading}
                 />
@@ -227,10 +227,10 @@ export default function OrderFormScreen() {
                 <TextInput
                   style={[styles.input, errors.dimension_z && styles.inputError]}
                   value={formData.dimension_z}
-                  onChangeText={(text) => updateField('dimension_z', text)}
+                  onChangeText={(text) => updateField('dimension_z', text.replaceAll(',', '.'))}
                   placeholder="0"
                   placeholderTextColor="#9ca3af"
-                  keyboardType="decimal-pad"
+                  keyboardType="default"
                   inputMode="decimal"
                   editable={!loading}
                 />

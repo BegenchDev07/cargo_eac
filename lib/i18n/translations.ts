@@ -116,6 +116,8 @@ export interface Translations {
     saved: string;
     saveError: string;
     deleteError: string;
+    removeFromFreight: string;
+    removeFromFreightError: string;
     cargoType: string;
     cargoTypes: {
       dangerous: string;
@@ -124,6 +126,7 @@ export interface Translations {
       standard: string;
     };
     price: string;
+    article: string;
     freight: string;
     freightNumber: string;
     assignToFreight: string;
@@ -263,6 +266,8 @@ export const translations: Record<Language, Translations> = {
       saved: 'Сохранено',
       saveError: 'Не удалось сохранить изменения',
       deleteError: 'Не удалось удалить заказы',
+      removeFromFreight: 'Убрать из фрахта',
+      removeFromFreightError: 'Не удалось убрать заказы из фрахта',
       cargoType: 'Тип груза',
       cargoTypes: {
         dangerous: 'Опасный',
@@ -271,6 +276,7 @@ export const translations: Record<Language, Translations> = {
         standard: 'Стандартный',
       },
       price: 'Стоимость',
+      article: 'Артикул',
       freight: 'Фрахт',
       freightNumber: 'Номер фрахта',
       assignToFreight: 'В фрахт',
@@ -408,6 +414,8 @@ export const translations: Record<Language, Translations> = {
       saved: '已保存',
       saveError: '无法保存更改',
       deleteError: '无法删除订单',
+      removeFromFreight: '从货运中移除',
+      removeFromFreightError: '无法将订单从货运中移除',
       cargoType: '货物类型',
       cargoTypes: {
         dangerous: '危险品',
@@ -416,6 +424,7 @@ export const translations: Record<Language, Translations> = {
         standard: '标准货',
       },
       price: '价格',
+      article: '货号',
       freight: '货运',
       freightNumber: '货运编号',
       assignToFreight: '分配到货运',

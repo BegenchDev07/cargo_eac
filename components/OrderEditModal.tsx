@@ -17,7 +17,7 @@ import { databaseService } from '../lib/services/pocketbase.service';
 import { useLanguage } from '../lib/i18n/LanguageContext';
 
 interface EditFormData {
-  customer_name: string;
+  client_name: string;
   weight: string;
   product_name: string;
   quantity: string;
@@ -26,7 +26,7 @@ interface EditFormData {
 }
 
 interface EditFormErrors {
-  customer_name?: string;
+  client_name?: string;
   weight?: string;
   product_name?: string;
   quantity?: string;
@@ -41,7 +41,7 @@ interface OrderEditModalProps {
 }
 
 const initialForm: EditFormData = {
-  customer_name: '',
+  client_name: '',
   weight: '',
   product_name: '',
   quantity: '',
@@ -58,7 +58,7 @@ export default function OrderEditModal({ visible, order, onClose, onSaved }: Ord
   useEffect(() => {
     if (visible && order) {
       setForm({
-        customer_name: order.customer_name || '',
+        client_name: order.client_name || '',
         weight: order.weight?.toString() || '',
         product_name: order.product_name || '',
         quantity: order.quantity?.toString() || '',
@@ -83,14 +83,14 @@ export default function OrderEditModal({ visible, order, onClose, onSaved }: Ord
   const validate = (): boolean => {
     const nextErrors: EditFormErrors = {};
 
-    if (!form.customer_name.trim()) {
-      nextErrors.customer_name = t.validation.required;
+    if (!form.client_name.trim()) {
+      nextErrors.client_name = t.validation.required;
     }
     if (!form.weight.trim()) {
       nextErrors.weight = t.validation.required;
     } else {
       const weightNum = parseFloat(form.weight);
-      if (isNaN(weightNum) || weightNum <= 0) {
+      if (!/^\d+(\.\d+)?$/.test(form.weight.trim()) || isNaN(weightNum) || weightNum <= 0) {
         nextErrors.weight = t.validation.invalidWeight;
       }
     }
@@ -101,7 +101,7 @@ export default function OrderEditModal({ visible, order, onClose, onSaved }: Ord
       nextErrors.quantity = t.validation.required;
     } else {
       const quantityNum = parseInt(form.quantity, 10);
-      if (isNaN(quantityNum) || quantityNum <= 0 || !Number.isInteger(quantityNum)) {
+      if (!/^\d+$/.test(form.quantity.trim()) || isNaN(quantityNum) || quantityNum <= 0 || !Number.isInteger(quantityNum)) {
         nextErrors.quantity = t.validation.invalidQuantity;
       }
     }
@@ -119,7 +119,7 @@ export default function OrderEditModal({ visible, order, onClose, onSaved }: Ord
     setSaving(true);
     try {
       const updatedOrder = await databaseService.updateOrder(order.id, {
-        customer_name: form.customer_name,
+        client_name: form.client_name,
         weight: parseFloat(form.weight),
         product_name: form.product_name,
         quantity: parseInt(form.quantity, 10),
@@ -160,15 +160,15 @@ export default function OrderEditModal({ visible, order, onClose, onSaved }: Ord
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>{t.form.customerName} {t.form.required}</Text>
                 <TextInput
-                  style={[styles.input, errors.customer_name && styles.inputError]}
-                  value={form.customer_name}
-                  onChangeText={(text) => updateField('customer_name', text)}
+                  style={[styles.input, errors.client_name && styles.inputError]}
+                  value={form.client_name}
+                  onChangeText={(text) => updateField('client_name', text)}
                   placeholder={t.placeholders.customerName}
                   placeholderTextColor="#9ca3af"
                   editable={!saving}
                 />
-                {errors.customer_name && (
-                  <Text style={styles.errorText}>{errors.customer_name}</Text>
+                {errors.client_name && (
+                  <Text style={styles.errorText}>{errors.client_name}</Text>
                 )}
               </View>
 
@@ -207,10 +207,10 @@ export default function OrderEditModal({ visible, order, onClose, onSaved }: Ord
                 <TextInput
                   style={[styles.input, errors.weight && styles.inputError]}
                   value={form.weight}
-                  onChangeText={(text) => updateField('weight', text)}
+                  onChangeText={(text) => updateField('weight', text.replaceAll(',', '.'))}
                   placeholder={t.placeholders.weight}
                   placeholderTextColor="#9ca3af"
-                  keyboardType="decimal-pad"
+                  keyboardType="default"
                   editable={!saving}
                 />
                 {errors.weight && <Text style={styles.errorText}>{errors.weight}</Text>}

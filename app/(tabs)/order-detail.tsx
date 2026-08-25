@@ -13,10 +13,10 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import QRCode from 'react-native-qrcode-svg';
 import * as Print from 'expo-print';
-import md5 from 'md5';
 import { Printer, ArrowLeft, CheckCircle, Pencil } from 'lucide-react-native';
 import { WarehouseOrder } from '../../lib/types/order';
 import { databaseService } from '../../lib/services/pocketbase.service';
+import { printOrderLabel } from '../../lib/services/print.service';
 import { generateQRData, formatOrderDate } from '../../utils/qr-generator';
 import { useLanguage } from '../../lib/i18n/LanguageContext';
 import OrderEditModal from '../../components/OrderEditModal';
@@ -37,51 +37,6 @@ export default function OrderDetailScreen() {
     loadOrder();
   }, [params.orderId]);
 
-
-  const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr);
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    return `${yyyy}.${mm}.${dd}`;
-  }
-  
-  
-  const buildRenderDataArray = (order: any) => {
-    const payload = [
-      {
-        "tester order": [
-          {
-            order_number: order.client_article,
-            qr_data: order.qr_data || "",
-            name: order.product_name,
-            weight: `${order.weight}kg`,
-            count: String(order.quantity),
-            customer_phone: order.client_number,
-            date: formatDate(order.created_at),
-            volume: `${order.cubic_meters}m3`,
-          },
-        ],
-      },
-    ];
-  
-    // Important: API wants STRINGIFIED JSON with no extra spaces/newlines
-    return JSON.stringify(payload);
-  };
-  
-  
-
-  const createDate = (date:any) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are zero-based
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
-
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-}
-  
 
   const loadOrder = async () => {
     try {
@@ -116,73 +71,12 @@ export default function OrderDetailScreen() {
     Alert.alert(t.orders.editSuccess);
   };
 
-
- const signStr = ({ obj, secret }: any) => {
-  // 1. Filter out undefined / null / empty values
-  // debugger;
-  const filteredObj = Object.entries(obj)
-    .filter(
-      ([_, value]) =>
-        value !== undefined &&
-        value !== null &&
-        value !== ""
-    )
-    .reduce<Record<string, any>>((acc, [key, value]) => {
-      acc[key] = value;
-      return acc;
-    }, {});
-
-  // 2. Sort keys alphabetically
-  const keysSorted = Object.keys(filteredObj).sort();
-
-  // 3. Concatenate key + value
-  const str = keysSorted
-    .map((key) => `${key}${filteredObj[key]}`)
-    .join("");
-
-  // 4. md5(secret + str + secret)
-  return md5(secret + str + secret);
-  // const test = md5(secret + str + secret);  
-  // debugger;
-}
-
   const handlePrint = async () => {
     if (!order || !qrData) return;    
     setPrinting(true);
     debugger;
     try {      
-      const renderData = buildRenderDataArray(order);
-
-const date = new Date();
-
-const secret = "886dc8df0e384027a22c01001352dbc2";
-
-const data = {
-  appId: "1763132720820",
-  printTimes: "1",
-  sn: "KM118DW24200294",
-  renderDataArray: renderData,
-  templateId: "1634986912",
-  timestamp: createDate(date),
-};
-
-const sign = signStr({ obj: data, secret });
-const finalPayload = { ...data, sign };
-
-fetch('https://cloud.kuaimai.com/api/cloud/print/tsplTemplatePrint', {
-  method: 'POST',
-  headers: {
-    "Content-Type": "application/json"
-  },
-  body: JSON.stringify(finalPayload) // body is stringified JSON
-})
-  .then(res => res.json())
-  .then(result => {
-    console.log("Print result:", result);
-  })
-  .catch(err => {
-    console.error("Print error:", err);
-  });
+      printOrderLabel(order);
 
       // const html = `
       //   <html>
@@ -315,8 +209,13 @@ fetch('https://cloud.kuaimai.com/api/cloud/print/tsplTemplatePrint', {
           <Text style={styles.sectionTitle}>{t.qr.orderInfo}</Text>
 
           <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>{t.dashboard.article}</Text>
+            <Text style={styles.infoValue}>{order.client_article}</Text>
+          </View>
+
+          <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>{t.form.customerName}</Text>
-            <Text style={styles.infoValue}>{order.customer_name}</Text>
+            <Text style={styles.infoValue}>{order.client_name}</Text>
           </View>
 
           <View style={styles.infoRow}>

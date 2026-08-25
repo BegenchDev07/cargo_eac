@@ -12,21 +12,33 @@ You need to create the following collections in your PocketBase admin panel:
 
 ### 1. `orders` Collection
 
-Create a collection named `orders` with the following fields:
+Create a collection named `orders` with the following fields. These match exactly what `lib/services/pocketbase.service.ts` sends and reads:
 
-| Field Name       | Field Type | Required | Options           |
-|-----------------|------------|----------|-------------------|
-| order_id        | Text       | Yes      | -                 |
-| client_article  | Text       | Yes      | -                 |
-| customer_name   | Text       | Yes      | -                 |
-| weight          | Number     | Yes      | Min: 0            |
-| size            | Text       | Yes      | -                 |
-| product_name    | Text       | Yes      | -                 |
-| quantity        | Number     | Yes      | Min: 1            |
-| client_number   | Text       | Yes      | -                 |
-| date            | Text       | Yes      | -                 |
-| qr_data         | Text       | No       | -                 |
-| image_urls      | Text       | No       | Multiple values   |
+| Field Name       | Field Type | Required | Options                                             |
+|-----------------|------------|----------|-----------------------------------------------------|
+| order_id        | Text       | Yes      | -                                                   |
+| client_article  | Text       | Yes      | **Unique index required** (see below)               |
+| client_name     | Text       | No       | -                                                   |
+| weight          | Number     | Yes      | Min: 0                                              |
+| cubic_meters    | Number     | Yes      | Min: 0                                              |
+| product_name    | Text       | Yes      | -                                                   |
+| quantity        | Number     | Yes      | Min: 1                                              |
+| client_number   | Text       | Yes      | -                                                   |
+| cargo_type      | Select     | No       | Values: `dangerous`, `liquid`, `brand`, `standard`. Default: `standard` |
+| date            | Date       | Yes      | -                                                   |
+| qr_data         | JSON       | No       | -                                                   |
+| pictures        | File       | No       | Multiple values. Allowed types: image/*             |
+| freight         | Relation   | No       | Related collection: `freights`, single, on delete: set null |
+
+**Notes:**
+
+- Images are stored directly on the `orders` record in the `pictures` file field (multiple files). The app builds image URLs as `/api/files/orders/{recordId}/{filename}`.
+- There is **no** `size` or `image_urls` field, and there is **no** separate `order_images` collection — earlier versions of this document described those, but the code has never used them.
+- `uploadImage()` in `lib/services/pocketbase.service.ts` is currently an unused stub that just returns the local URI. It is declared in the `DatabaseService` interface (`lib/services/database.interface.ts`) but never called; image upload happens inline in `createOrder` via the `pictures` field.
+
+**Unique index on `client_article`:**
+
+The app generates `client_article` client-side (day prefix + counter) and relies on a server-side unique constraint to detect collisions and retry. In the PocketBase admin UI, open the `orders` collection, edit the `client_article` field, and enable **Unique** (or add a unique index on the field). Without this index, two orders created concurrently can receive the same article number and the retry logic will not trigger.
 
 **Collection Settings:**
 - API Rules: Allow all for testing (adjust for production)
@@ -35,20 +47,20 @@ Create a collection named `orders` with the following fields:
 - Update Rule: Leave empty or set based on your needs
 - Delete Rule: Leave empty or set based on your needs
 
-### 2. `order_images` Collection
+### 2. `freights` Collection
 
-Create a collection named `order_images` with the following fields:
+Create a collection named `freights` with the following fields:
 
-| Field Name | Field Type | Required | Options                  |
-|-----------|------------|----------|--------------------------|
-| image     | File       | Yes      | Max size: 5MB per file   |
-|           |            |          | Allowed types: image/*   |
+| Field Name     | Field Type | Required | Options                                       |
+|---------------|------------|----------|-----------------------------------------------|
+| freight_number | Text      | Yes      | **Unique index required** (see below)         |
+| load_date     | Date       | Yes      | -                                             |
+| notes         | Text       | No       | -                                             |
+| status        | Select     | No       | Values: `open`, `closed`, `shipped`. Default: `open` |
 
-**Collection Settings:**
-- API Rules: Allow all for testing (adjust for production)
-- File settings:
-  - Max file size: 5MB (or adjust as needed)
-  - Allowed file types: image/jpeg, image/png, image/jpg
+**Unique index on `freight_number`:**
+
+The app generates `freight_number` client-side (`F-0001`, `F-0002`, ...) and retries when the server rejects a duplicate. Enable **Unique** on the `freight_number` field in the PocketBase admin UI so concurrent creates cannot produce duplicate numbers.
 
 ## Setup Steps
 
@@ -60,7 +72,8 @@ Create a collection named `order_images` with the following fields:
    - Click on "Collections" in the sidebar
    - Click "New collection"
    - Add the `orders` collection with all fields listed above
-   - Repeat for `order_images` collection
+   - Repeat for the `freights` collection
+   - Enable the unique indexes on `orders.client_article` and `freights.freight_number`
 
 3. **Configure API Rules**
    - For development: Set all rules to allow access
@@ -85,14 +98,14 @@ This is already configured in `.env` file.
 
 1. **Create Order:**
    - User fills form with order details
-   - Images are uploaded to `order_images` collection
-   - Order data with image URLs saved to `orders` collection
+   - Images are uploaded as files into the `pictures` field of the `orders` record (same multipart `create` call)
    - QR code generated with order information
 
 2. **View Order:**
-   - Order fetched from `orders` collection by ID
+   - Order fetched from `orders` collection by ID (with `expand=freight`)
+   - Image URLs are derived from the `pictures` filenames
    - QR code displayed with order details
-   - Print functionality generates PDF with QR code
+   - Print functionality sends the label to the Kuaimai cloud print API (see `lib/services/print.service.ts`)
 
 ## Security Considerations
 
@@ -115,9 +128,8 @@ This is already configured in `.env` file.
 - Check firewall settings
 
 **Upload Issues:**
-- Verify `order_images` collection exists
+- Verify the `pictures` file field exists on the `orders` collection
 - Check file size limits
-- Ensure file field is named `image`
 - Verify file permissions
 
 **Data Not Saving:**
@@ -125,3 +137,7 @@ This is already configured in `.env` file.
 - Verify all required fields are provided
 - Check console for error messages
 - Verify collection schemas match expected format
+
+**Duplicate Article / Freight Numbers:**
+- Confirm the unique indexes on `orders.client_article` and `freights.freight_number` are enabled
+- The app retries number generation up to 3 times when the server rejects a duplicate
