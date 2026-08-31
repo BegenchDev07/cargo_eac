@@ -68,7 +68,9 @@ export default function OrderFormScreen() {
       const dimX = parseFloat(formData.dimension_x);
       const dimY = parseFloat(formData.dimension_y);
       const dimZ = parseFloat(formData.dimension_z);
-      const cubicMeters = (dimX * dimY * dimZ) / 1000000;
+      const quantity = parseInt(formData.quantity, 10);
+      // Total volume = volume of one box (cm³ → m³) times the number of boxes
+      const cubicMeters = ((dimX * dimY * dimZ) / 1000000) * quantity;
 
       const orderData = {
         client_name: formData.client_name,
@@ -78,7 +80,7 @@ export default function OrderFormScreen() {
         dimension_z: dimZ,
         cubic_meters: cubicMeters,
         product_name: formData.product_name,
-        quantity: parseInt(formData.quantity, 10),
+        quantity: quantity,
         client_number: formData.client_number,
         cargo_type: formData.cargo_type,
         qr_data: {},

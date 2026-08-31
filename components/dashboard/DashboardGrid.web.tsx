@@ -324,9 +324,13 @@ export default function DashboardGrid({ onError, freightId }: DashboardGridProps
       setSaveFeedback('saving', t.dashboard.saving);
 
       try {
-        await databaseService.updateOrder(data.id, {
-          [colDef.field]: newValue,
-        });
+        const update: Record<string, unknown> = { [colDef.field]: newValue };
+        // Keep total volume consistent when the box count changes
+        // (per-box volume = stored cubic_meters ÷ old quantity)
+        if (colDef.field === 'quantity' && data.quantity > 0) {
+          update.cubic_meters = (data.cubic_meters / data.quantity) * Number(newValue);
+        }
+        await databaseService.updateOrder(data.id, update);
         setSaveFeedback('saved', t.dashboard.saved);
       } catch (error) {
         console.error('Failed to save cell change:', error);
