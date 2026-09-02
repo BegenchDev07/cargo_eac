@@ -8,8 +8,10 @@ export interface Translations {
   form: {
     customerName: string;
     weight: string;
+    totalWeight: string;
     dimensions: string;
     cubicMeters: string;
+    totalVolume: string;
     productName: string;
     quantity: string;
     clientNumber: string;
@@ -158,8 +160,10 @@ export const translations: Record<Language, Translations> = {
     form: {
       customerName: 'Имя клиента',
       weight: 'Вес (кг)',
+      totalWeight: 'Общий вес (кг)',
       dimensions: 'Размеры (см)',
       cubicMeters: 'Объём (м³)',
+      totalVolume: 'Общий объём (м³)',
       productName: 'Наименование',
       quantity: 'Количество коробок',
       clientNumber: 'Номер клиента',
@@ -306,8 +310,10 @@ export const translations: Record<Language, Translations> = {
     form: {
       customerName: '客户姓名',
       weight: '重量 (kg)',
+      totalWeight: '总重量 (kg)',
       dimensions: '尺寸 (cm)',
       cubicMeters: '体积 (m³)',
+      totalVolume: '总体积 (m³)',
       productName: '产品名称',
       quantity: '箱数',
       clientNumber: '客户编号',

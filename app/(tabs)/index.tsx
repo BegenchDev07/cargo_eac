@@ -69,16 +69,22 @@ export default function OrderFormScreen() {
       const dimY = parseFloat(formData.dimension_y);
       const dimZ = parseFloat(formData.dimension_z);
       const quantity = parseInt(formData.quantity, 10);
-      // Total volume = volume of one box (cm³ → m³) times the number of boxes
-      const cubicMeters = ((dimX * dimY * dimZ) / 1000000) * quantity;
+      // cubic_meters = volume of a single box (cm³ → m³);
+      // total_volume = whole order (single box × number of boxes)
+      const cubicMeters = (dimX * dimY * dimZ) / 1000000;
+      const totalVolume = cubicMeters * quantity;
+      // weight is per box; total weight covers all boxes
+      const totalWeight = parseFloat(formData.weight) * quantity;
 
       const orderData = {
         client_name: formData.client_name,
         weight: parseFloat(formData.weight),
+        total_weight: totalWeight,
         dimension_x: dimX,
         dimension_y: dimY,
         dimension_z: dimZ,
         cubic_meters: cubicMeters,
+        total_volume: totalVolume,
         product_name: formData.product_name,
         quantity: quantity,
         client_number: formData.client_number,

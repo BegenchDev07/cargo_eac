@@ -56,7 +56,7 @@ export default function FreightsScreen() {
 
   const getFreightTotalPrice = (freightId: string) => {
     return getOrdersByFreight(freightId).reduce((sum, order) => {
-      return sum + calculateOrderPrice(order.weight, order.cubic_meters);
+      return sum + calculateOrderPrice(order.weight, order.total_volume ?? order.cubic_meters);
     }, 0);
   };
 

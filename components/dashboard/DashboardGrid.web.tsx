@@ -181,6 +181,16 @@ export default function DashboardGrid({ onError, freightId }: DashboardGridProps
         },
       },
       {
+        field: 'total_weight',
+        headerName: t.form.totalWeight,
+        width: 130,
+        editable: false,
+        sortable: true,
+        filter: 'agNumberColumnFilter',
+        valueFormatter: (params) =>
+          params.value != null ? `${params.value} kg` : '',
+      },
+      {
         field: 'cubic_meters',
         headerName: t.form.cubicMeters,
         width: 140,
@@ -191,6 +201,16 @@ export default function DashboardGrid({ onError, freightId }: DashboardGridProps
           const parsed = parseFloat(params.newValue);
           return isNaN(parsed) ? params.oldValue : parsed;
         },
+        valueFormatter: (params) =>
+          typeof params.value === 'number' ? params.value.toFixed(4) : params.value,
+      },
+      {
+        field: 'total_volume',
+        headerName: t.form.totalVolume,
+        width: 150,
+        editable: false,
+        sortable: true,
+        filter: 'agNumberColumnFilter',
         valueFormatter: (params) =>
           typeof params.value === 'number' ? params.value.toFixed(4) : params.value,
       },
@@ -241,7 +261,8 @@ export default function DashboardGrid({ onError, freightId }: DashboardGridProps
         valueGetter: (params) => {
           const order = params.data;
           if (!order) return 0;
-          return calculateOrderPrice(order.weight, order.cubic_meters);
+          // Price is per whole order, so use the total volume
+          return calculateOrderPrice(order.weight, order.total_volume ?? order.cubic_meters);
         },
         valueFormatter: (params) => formatPrice(params.value as number),
       },
@@ -325,10 +346,16 @@ export default function DashboardGrid({ onError, freightId }: DashboardGridProps
 
       try {
         const update: Record<string, unknown> = { [colDef.field]: newValue };
-        // Keep total volume consistent when the box count changes
-        // (per-box volume = stored cubic_meters ÷ old quantity)
-        if (colDef.field === 'quantity' && data.quantity > 0) {
-          update.cubic_meters = (data.cubic_meters / data.quantity) * Number(newValue);
+        // Keep the whole-order totals consistent with the edited field:
+        // total_volume = single-box volume × quantity
+        // total_weight = weight per box × quantity
+        if (colDef.field === 'quantity') {
+          update.total_volume = data.cubic_meters * Number(newValue);
+          update.total_weight = data.weight * Number(newValue);
+        } else if (colDef.field === 'cubic_meters') {
+          update.total_volume = Number(newValue) * data.quantity;
+        } else if (colDef.field === 'weight') {
+          update.total_weight = Number(newValue) * data.quantity;
         }
         await databaseService.updateOrder(data.id, update);
         setSaveFeedback('saved', t.dashboard.saved);
@@ -367,19 +394,25 @@ export default function DashboardGrid({ onError, freightId }: DashboardGridProps
 
     if (rowsToExport.length === 0) return;
 
+    // Excel export uses comma as the decimal separator (ru locale convention)
+    const toExportNumber = (value: number | null | undefined): string | number =>
+      value == null ? '' : String(value).replace('.', ',');
+
     const exportRows = rowsToExport.map((order) => ({
       [t.dashboard.article]: order.client_article,
       [t.form.customerName]: order.client_name,
       [t.form.productName]: order.product_name,
-      [t.form.weight]: order.weight,
-      [t.form.cubicMeters]: order.cubic_meters,
+      [t.form.weight]: toExportNumber(order.weight),
+      [t.form.totalWeight]: toExportNumber(order.total_weight),
+      [t.form.cubicMeters]: toExportNumber(order.cubic_meters),
+      [t.form.totalVolume]: toExportNumber(order.total_volume),
       [t.form.quantity]: order.quantity,
       [t.form.clientNumber]: order.client_number,
       [t.dashboard.cargoType]: order.cargo_type
         ? t.dashboard.cargoTypes[order.cargo_type]
         : '',
-      [t.dashboard.price]: formatPrice(
-        calculateOrderPrice(order.weight, order.cubic_meters)
+      [t.dashboard.price]: toExportNumber(
+        Number(calculateOrderPrice(order.weight, order.total_volume ?? order.cubic_meters).toFixed(2))
       ),
       [t.dashboard.freightNumber]: order.freight_number || '',
       [t.form.date]: order.date ? new Date(order.date).toLocaleString() : '',

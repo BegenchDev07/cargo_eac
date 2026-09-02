@@ -119,19 +119,17 @@ export default function OrderEditModal({ visible, order, onClose, onSaved }: Ord
     setSaving(true);
     try {
       const newQuantity = parseInt(form.quantity, 10);
-      // Dimensions aren't stored, so recalculate total volume proportionally:
-      // stored cubic_meters ÷ old quantity = per-box volume, × new quantity.
-      const cubicMeters =
-        order.quantity > 0
-          ? (order.cubic_meters / order.quantity) * newQuantity
-          : order.cubic_meters;
+      // cubic_meters is the single-box volume (dimensions aren't edited here),
+      // so the whole-order volume is just it times the new box count.
+      const totalVolume = order.cubic_meters * newQuantity;
 
       const updatedOrder = await databaseService.updateOrder(order.id, {
         client_name: form.client_name,
         weight: parseFloat(form.weight),
+        total_weight: parseFloat(form.weight) * newQuantity,
         product_name: form.product_name,
         quantity: newQuantity,
-        cubic_meters: cubicMeters,
+        total_volume: totalVolume,
         client_number: form.client_number,
         cargo_type: form.cargo_type,
       });

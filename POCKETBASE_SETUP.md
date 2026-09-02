@@ -19,8 +19,10 @@ Create a collection named `orders` with the following fields. These match exactl
 | order_id        | Text       | Yes      | -                                                   |
 | client_article  | Text       | Yes      | **Unique index required** (see below)               |
 | client_name     | Text       | No       | -                                                   |
-| weight          | Number     | Yes      | Min: 0                                              |
-| cubic_meters    | Number     | Yes      | Min: 0                                              |
+| weight          | Number     | Yes      | Min: 0 (weight per box)                            |
+| total_weight    | Number     | Yes      | Min: 0 (= weight × quantity; dashboard/export only, never in QR or print) |
+| cubic_meters    | Number     | Yes      | Min: 0 (volume of a single box)                    |
+| total_volume    | Number     | Yes      | Min: 0 (= cubic_meters × quantity)                 |
 | product_name    | Text       | Yes      | -                                                   |
 | quantity        | Number     | Yes      | Min: 1                                              |
 | client_number   | Text       | Yes      | -                                                   |

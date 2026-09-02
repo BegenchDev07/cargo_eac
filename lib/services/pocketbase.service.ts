@@ -82,7 +82,9 @@ class PocketBaseService implements DatabaseService {
         formData.append('client_article', clientArticle);
         formData.append('client_name', order.client_name || '');
         formData.append('weight', order.weight.toString());
+        formData.append('total_weight', (order.total_weight ?? order.weight * order.quantity).toString());
         formData.append('cubic_meters', order.cubic_meters.toString());
+        formData.append('total_volume', (order.total_volume ?? order.cubic_meters * order.quantity).toString());
         formData.append('product_name', order.product_name);
         formData.append('quantity', order.quantity.toString());
         formData.append('client_number', order.client_number);
@@ -127,7 +129,9 @@ class PocketBaseService implements DatabaseService {
             client_article: record.client_article,
             client_name: record.client_name,
             weight: record.weight,
+            total_weight: record.total_weight,
             cubic_meters: record.cubic_meters,
+            total_volume: record.total_volume,
             product_name: record.product_name,
             quantity: record.quantity,
             client_number: record.client_number,
@@ -168,7 +172,9 @@ class PocketBaseService implements DatabaseService {
         client_article: record.client_article,
         client_name: record.client_name,
         weight: record.weight,
+        total_weight: record.total_weight,
         cubic_meters: record.cubic_meters,
+        total_volume: record.total_volume,
         product_name: record.product_name,
         quantity: record.quantity,
         client_number: record.client_number,
@@ -198,7 +204,9 @@ class PocketBaseService implements DatabaseService {
         client_article: record.client_article,
         client_name: record.client_name,
         weight: record.weight,
+        total_weight: record.total_weight,
         cubic_meters: record.cubic_meters,
+        total_volume: record.total_volume,
         product_name: record.product_name,
         quantity: record.quantity,
         client_number: record.client_number,
@@ -229,7 +237,9 @@ class PocketBaseService implements DatabaseService {
       if (order.client_article !== undefined) updateData.client_article = order.client_article;
       if (order.client_name !== undefined) updateData.client_name = order.client_name;
       if (order.weight !== undefined) updateData.weight = order.weight;
+      if (order.total_weight !== undefined) updateData.total_weight = order.total_weight;
       if (order.cubic_meters !== undefined) updateData.cubic_meters = order.cubic_meters;
+      if (order.total_volume !== undefined) updateData.total_volume = order.total_volume;
       if (order.product_name !== undefined) updateData.product_name = order.product_name;
       if (order.quantity !== undefined) updateData.quantity = order.quantity;
       if (order.client_number !== undefined) updateData.client_number = order.client_number;
@@ -247,7 +257,9 @@ class PocketBaseService implements DatabaseService {
         client_article: record.client_article,
         client_name: record.client_name,
         weight: record.weight,
+        total_weight: record.total_weight,
         cubic_meters: record.cubic_meters,
+        total_volume: record.total_volume,
         product_name: record.product_name,
         quantity: record.quantity,
         client_number: record.client_number,
