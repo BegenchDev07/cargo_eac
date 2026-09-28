@@ -52,6 +52,9 @@
     },
     "extra": {
       "EXPO_PUBLIC_POCKETBASE_URL": "http://120.55.49.54",
+      "EXPO_PUBLIC_ARCHIVER_URL": "http://120.55.49.54",
+      // LOCAL: "EXPO_PUBLIC_POCKETBASE_URL": "http://127.0.0.1:8090",
+      // LOCAL: "EXPO_PUBLIC_ARCHIVER_URL": "http://127.0.0.1:8091",
       "router": {},
       "eas": {
         "projectId": "45455385-b332-4d82-8164-12c4f52670b3"

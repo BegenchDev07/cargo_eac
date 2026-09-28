@@ -24,7 +24,7 @@ import { RefreshCw, Download, Trash2, LayoutGrid, MinusCircle } from 'lucide-rea
 import { databaseService } from '../../lib/services/pocketbase.service';
 import { WarehouseOrder, CARGO_TYPES, CargoType } from '../../lib/types/order';
 import { Freight } from '../../lib/types/freight';
-import { calculateOrderPrice, formatPrice } from '../../utils/pricing';
+import { formatPrice } from '../../utils/pricing';
 import { useLanguage } from '../../lib/i18n/LanguageContext';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -88,7 +88,9 @@ export default function DashboardGrid({ onError, freightId }: DashboardGridProps
   const loadOrders = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await databaseService.listOrders(1, 500);
+      // excludeArchived=false: archived freights' detail views still need their
+      // orders (filtering by freight_id happens client-side below)
+      const result = await databaseService.listOrders(1, 500, false);
       let items = result.items;
       if (freightId) {
         items = items.filter((order) => order.freight_id === freightId);
@@ -202,7 +204,7 @@ export default function DashboardGrid({ onError, freightId }: DashboardGridProps
           return isNaN(parsed) ? params.oldValue : parsed;
         },
         valueFormatter: (params) =>
-          typeof params.value === 'number' ? params.value.toFixed(4) : params.value,
+          typeof params.value === 'number' ? params.value.toFixed(3) : params.value,
       },
       {
         field: 'total_volume',
@@ -212,7 +214,7 @@ export default function DashboardGrid({ onError, freightId }: DashboardGridProps
         sortable: true,
         filter: 'agNumberColumnFilter',
         valueFormatter: (params) =>
-          typeof params.value === 'number' ? params.value.toFixed(4) : params.value,
+          typeof params.value === 'number' ? params.value.toFixed(3) : params.value,
       },
       {
         field: 'quantity',
@@ -252,19 +254,20 @@ export default function DashboardGrid({ onError, freightId }: DashboardGridProps
         },
       },
       {
-        colId: 'price',
+        field: 'price',
         headerName: t.dashboard.price,
         width: 120,
-        editable: false,
+        // Stored field, editable by hand: management can set special prices.
+        // Never auto-recalculated from weight/volume edits on the dashboard.
+        editable: true,
         sortable: true,
         filter: 'agNumberColumnFilter',
-        valueGetter: (params) => {
-          const order = params.data;
-          if (!order) return 0;
-          // Price is per whole order, so use the total volume
-          return calculateOrderPrice(order.weight, order.total_volume ?? order.cubic_meters);
+        valueParser: (params) => {
+          const parsed = parseFloat(String(params.newValue).replaceAll(',', '.'));
+          return isNaN(parsed) ? params.oldValue : parsed;
         },
-        valueFormatter: (params) => formatPrice(params.value as number),
+        valueFormatter: (params) =>
+          typeof params.value === 'number' ? formatPrice(params.value) : '',
       },
       {
         field: 'date',
@@ -411,9 +414,7 @@ export default function DashboardGrid({ onError, freightId }: DashboardGridProps
       [t.dashboard.cargoType]: order.cargo_type
         ? t.dashboard.cargoTypes[order.cargo_type]
         : '',
-      [t.dashboard.price]: toExportNumber(
-        Number(calculateOrderPrice(order.weight, order.total_volume ?? order.cubic_meters).toFixed(2))
-      ),
+      [t.dashboard.price]: toExportNumber(order.price),
       [t.dashboard.freightNumber]: order.freight_number || '',
       [t.form.date]: order.date ? new Date(order.date).toLocaleString() : '',
       [t.form.photos]: order.pictures?.length || 0,

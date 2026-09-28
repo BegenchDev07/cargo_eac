@@ -10,6 +10,7 @@ export interface WarehouseOrder {
   total_weight?: number;
   cubic_meters: number;
   total_volume?: number;
+  price?: number;
   product_name: string;
   quantity: number;
   client_number: string;

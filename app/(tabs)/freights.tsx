@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,14 +8,17 @@ import {
   ScrollView,
   TextInput,
   Alert,
+  Linking,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Truck, Plus, RefreshCw } from 'lucide-react-native';
+import { Truck, Plus, RefreshCw, Archive, Download, Upload, RotateCw } from 'lucide-react-native';
 import { databaseService } from '../../lib/services/pocketbase.service';
 import { Freight } from '../../lib/types/freight';
 import { WarehouseOrder } from '../../lib/types/order';
-import { calculateOrderPrice, formatPrice } from '../../utils/pricing';
+import { formatPrice } from '../../utils/pricing';
+import { archiverBaseUrl, downloadFreightCSV } from '../../utils/csv-export';
 import { useLanguage } from '../../lib/i18n/LanguageContext';
 
 export default function FreightsScreen() {
@@ -28,13 +31,21 @@ export default function FreightsScreen() {
   const [newLoadDate, setNewLoadDate] = useState(new Date().toISOString().slice(0, 16));
   const [newNotes, setNewNotes] = useState('');
   const [creating, setCreating] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  const [archiveFailedFreight, setArchiveFailedFreight] = useState<Freight | null>(null);
+  // Web-only hidden input for manual CSV upload (native omits the option)
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
+  const uploadFreightIdRef = useRef<string>('');
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const [freightsResult, ordersResult] = await Promise.all([
-        databaseService.listFreights(),
-        databaseService.listOrders(1, 500),
+        showArchived
+          ? databaseService.listArchivedFreights()
+          : databaseService.listFreights(),
+        // excludeArchived=false: order counts must also work for archived freights
+        databaseService.listOrders(1, 500, false),
       ]);
       setFreights(freightsResult);
       setOrders(ordersResult.items);
@@ -44,7 +55,7 @@ export default function FreightsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [showArchived, t]);
 
   useEffect(() => {
     loadData();
@@ -56,7 +67,7 @@ export default function FreightsScreen() {
 
   const getFreightTotalPrice = (freightId: string) => {
     return getOrdersByFreight(freightId).reduce((sum, order) => {
-      return sum + calculateOrderPrice(order.weight, order.total_volume ?? order.cubic_meters);
+      return sum + (order.price ?? 0);
     }, 0);
   };
 
@@ -89,16 +100,95 @@ export default function FreightsScreen() {
     });
   };
 
+  // After archiving, the archiver service should write archive_version within
+  // a few seconds; poll for it and offer fallbacks when it never appears.
+  const pollForArchive = useCallback(
+    async (freightId: string) => {
+      for (let attempt = 0; attempt < 5; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        const freight = await databaseService.getFreight(freightId);
+        if (freight && (freight.archive_version ?? 0) >= 1) {
+          loadData();
+          return;
+        }
+      }
+      const freight = await databaseService.getFreight(freightId);
+      if (freight) {
+        setArchiveFailedFreight(freight);
+      }
+    },
+    [loadData]
+  );
+
   const handleUpdateStatus = async (freightId: string, status: Freight['status']) => {
     try {
       await databaseService.updateFreight(freightId, { status });
       setFreights((prev) =>
         prev.map((f) => (f.id === freightId ? { ...f, status } : f))
       );
+      if (status === 'archived') {
+        pollForArchive(freightId);
+      }
     } catch (error) {
       console.error('Failed to update freight status:', error);
       Alert.alert(t.dashboard.errorTitle, 'Failed to update freight status');
     }
+  };
+
+  const handleDownloadFile = (relativePath: string) => {
+    Linking.openURL(`${archiverBaseUrl}/archives/${relativePath}`);
+  };
+
+  const handleRegenerate = async (freightId: string) => {
+    try {
+      const response = await fetch(`${archiverBaseUrl}/regenerate/${freightId}`, {
+        method: 'POST',
+      });
+      if (!response.ok) throw new Error(`Archiver responded ${response.status}`);
+      loadData();
+    } catch (error) {
+      console.error('Failed to regenerate archive:', error);
+      Alert.alert(t.dashboard.errorTitle, t.freights.archiveFailedMessage);
+    }
+  };
+
+  const handleUploadPress = (freightId: string) => {
+    uploadFreightIdRef.current = freightId;
+    uploadInputRef.current?.click();
+  };
+
+  const handleUploadFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    const freightId = uploadFreightIdRef.current;
+    event.target.value = '';
+    if (!file || !freightId) return;
+
+    try {
+      const body = await file.text();
+      const response = await fetch(
+        `${archiverBaseUrl}/archives/upload?freightId=${encodeURIComponent(freightId)}`,
+        { method: 'POST', body }
+      );
+      if (!response.ok) throw new Error(`Archiver responded ${response.status}`);
+      loadData();
+    } catch (error) {
+      console.error('Failed to upload archive CSV:', error);
+      Alert.alert(t.dashboard.errorTitle, t.freights.archiveFailedMessage);
+    }
+  };
+
+  const handleDownloadLocally = () => {
+    if (!archiveFailedFreight?.id) return;
+    downloadFreightCSV(archiveFailedFreight, getOrdersByFreight(archiveFailedFreight.id));
+    setArchiveFailedFreight(null);
+  };
+
+  const handleRetryArchive = () => {
+    if (!archiveFailedFreight?.id) return;
+    const freightId = archiveFailedFreight.id;
+    setArchiveFailedFreight(null);
+    handleRegenerate(freightId);
+    pollForArchive(freightId);
   };
 
   if (loading && freights.length === 0) {
@@ -114,20 +204,41 @@ export default function FreightsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      {Platform.OS === 'web' && (
+        <input
+          ref={uploadInputRef}
+          type="file"
+          accept=".csv,text/csv"
+          style={{ display: 'none' }}
+          onChange={handleUploadFile}
+        />
+      )}
       <View style={styles.header}>
         <View style={styles.titleRow}>
           <Truck size={28} color="#007AFF" />
-          <Text style={styles.title}>{t.freights.title}</Text>
+          <Text style={styles.title}>
+            {showArchived ? t.freights.archiveView : t.freights.title}
+          </Text>
         </View>
         <View style={styles.actions}>
           <TouchableOpacity style={styles.actionButton} onPress={loadData} disabled={loading}>
             <RefreshCw size={18} color="#007AFF" style={loading ? styles.spinning : undefined} />
             <Text style={styles.actionText}>{t.dashboard.refresh}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton} onPress={() => setModalVisible(true)}>
-            <Plus size={18} color="#007AFF" />
-            <Text style={styles.actionText}>{t.freights.createFreight}</Text>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => setShowArchived((prev) => !prev)}>
+            <Archive size={18} color="#007AFF" />
+            <Text style={styles.actionText}>
+              {showArchived ? t.freights.showActive : t.freights.showArchived}
+            </Text>
           </TouchableOpacity>
+          {!showArchived && (
+            <TouchableOpacity style={styles.actionButton} onPress={() => setModalVisible(true)}>
+              <Plus size={18} color="#007AFF" />
+              <Text style={styles.actionText}>{t.freights.createFreight}</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -135,11 +246,14 @@ export default function FreightsScreen() {
         {freights.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Truck size={64} color="#C7C7CC" />
-            <Text style={styles.emptyText}>{t.freights.empty}</Text>
+            <Text style={styles.emptyText}>
+              {showArchived ? t.freights.emptyArchived : t.freights.empty}
+            </Text>
           </View>
         ) : (
           freights.map((freight) => {
             const freightOrders = getOrdersByFreight(freight.id!);
+            const archiveFiles = freight.archive_files ?? [];
 
             return (
               <TouchableOpacity
@@ -170,7 +284,7 @@ export default function FreightsScreen() {
                   </Text>
                   {freight.notes ? <Text style={styles.freightNotes}>{freight.notes}</Text> : null}
                   <View style={styles.statusRow}>
-                    {(['open', 'closed', 'shipped'] as const).map((status) => (
+                    {(['open', 'closed', 'shipped', 'archived'] as const).map((status) => (
                       <TouchableOpacity
                         key={status}
                         style={[
@@ -179,6 +293,7 @@ export default function FreightsScreen() {
                           status === 'open' && freight.status === status && styles.statusButtonOpen,
                           status === 'closed' && freight.status === status && styles.statusButtonClosed,
                           status === 'shipped' && freight.status === status && styles.statusButtonShipped,
+                          status === 'archived' && freight.status === status && styles.statusButtonArchived,
                         ]}
                         onPress={(event) => {
                           // On web the press bubbles to the card's TouchableOpacity
@@ -196,6 +311,54 @@ export default function FreightsScreen() {
                       </TouchableOpacity>
                     ))}
                   </View>
+
+                  {showArchived && (
+                    <View style={styles.archiveSection}>
+                      <Text style={styles.archiveSectionTitle}>
+                        {t.freights.archiveFiles}
+                        {freight.archive_version ? ` (v${freight.archive_version})` : ''}
+                      </Text>
+                      {archiveFiles.length > 0 ? (
+                        archiveFiles.map((relativePath) => (
+                          <TouchableOpacity
+                            key={relativePath}
+                            style={styles.archiveFileRow}
+                            accessibilityLabel={t.freights.download}
+                            onPress={(event) => {
+                              event.stopPropagation?.();
+                              handleDownloadFile(relativePath);
+                            }}>
+                            <Download size={14} color="#007AFF" />
+                            <Text style={styles.archiveFileLink}>{relativePath}</Text>
+                          </TouchableOpacity>
+                        ))
+                      ) : (
+                        <View style={styles.archiveActions}>
+                          <Text style={styles.noOrdersText}>{t.freights.noArchiveFiles}</Text>
+                          <TouchableOpacity
+                            style={styles.actionButton}
+                            onPress={(event) => {
+                              event.stopPropagation?.();
+                              handleRegenerate(freight.id!);
+                            }}>
+                            <RotateCw size={14} color="#007AFF" />
+                            <Text style={styles.actionText}>{t.freights.regenerate}</Text>
+                          </TouchableOpacity>
+                          {Platform.OS === 'web' && (
+                            <TouchableOpacity
+                              style={styles.actionButton}
+                              onPress={(event) => {
+                                event.stopPropagation?.();
+                                handleUploadPress(freight.id!);
+                              }}>
+                              <Upload size={14} color="#007AFF" />
+                              <Text style={styles.actionText}>{t.freights.uploadCsv}</Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      )}
+                    </View>
+                  )}
                 </View>
               </TouchableOpacity>
             );
@@ -240,6 +403,30 @@ export default function FreightsScreen() {
                 ) : (
                   <Text style={styles.modalButtonText}>{t.dashboard.confirm}</Text>
                 )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {archiveFailedFreight && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>{t.freights.archiveFailedTitle}</Text>
+            <Text style={styles.modalLabel}>{t.freights.archiveFailedMessage}</Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonSecondary]}
+                onPress={() => setArchiveFailedFreight(null)}>
+                <Text style={styles.modalButtonSecondaryText}>{t.dashboard.cancel}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonSecondary]}
+                onPress={handleDownloadLocally}>
+                <Text style={styles.modalButtonSecondaryText}>{t.freights.downloadLocally}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalButton} onPress={handleRetryArchive}>
+                <Text style={styles.modalButtonText}>{t.freights.retry}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -398,6 +585,9 @@ const styles = StyleSheet.create({
   statusButtonShipped: {
     backgroundColor: '#8E8E93',
   },
+  statusButtonArchived: {
+    backgroundColor: '#AF52DE',
+  },
   statusButtonText: {
     fontSize: 13,
     fontWeight: '500',
@@ -414,6 +604,35 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6b7280',
     fontStyle: 'italic',
+  },
+  archiveSection: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F2F2F7',
+    gap: 8,
+  },
+  archiveSectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  archiveFileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 4,
+  },
+  archiveFileLink: {
+    fontSize: 13,
+    color: '#007AFF',
+    textDecorationLine: 'underline',
+  },
+  archiveActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   ordersList: {
     marginTop: 12,

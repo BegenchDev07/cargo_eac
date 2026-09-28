@@ -95,12 +95,26 @@ export interface Translations {
     title: string;
     createFreight: string;
     empty: string;
+    emptyArchived: string;
     orders: string;
     noOrders: string;
+    archiveView: string;
+    showArchived: string;
+    showActive: string;
+    archiveFiles: string;
+    noArchiveFiles: string;
+    download: string;
+    regenerate: string;
+    uploadCsv: string;
+    archiveFailedTitle: string;
+    archiveFailedMessage: string;
+    downloadLocally: string;
+    retry: string;
     status: {
       open: string;
       closed: string;
       shipped: string;
+      archived: string;
     };
   };
   dashboard: {
@@ -247,12 +261,27 @@ export const translations: Record<Language, Translations> = {
       title: 'Фрахты',
       createFreight: 'Создать фрахт',
       empty: 'Нет фрахтов',
+      emptyArchived: 'Нет архивных фрахтов',
       orders: 'заказов',
       noOrders: 'В этом фрахте пока нет заказов',
+      archiveView: 'Архив фрахтов',
+      showArchived: 'Архив',
+      showActive: 'Активные',
+      archiveFiles: 'Файлы архива',
+      noArchiveFiles: 'Файлы архива ещё не созданы',
+      download: 'Скачать',
+      regenerate: 'Сгенерировать архив',
+      uploadCsv: 'Загрузить CSV',
+      archiveFailedTitle: 'Архив не создан',
+      archiveFailedMessage:
+        'Сервис архивации не создал файл архива. Вы можете скачать CSV локально или повторить попытку.',
+      downloadLocally: 'Скачать CSV локально',
+      retry: 'Повторить',
       status: {
         open: 'Открыт',
         closed: 'Закрыт',
         shipped: 'Отправлен',
+        archived: 'В архиве',
       },
     },
     dashboard: {
@@ -397,12 +426,26 @@ export const translations: Record<Language, Translations> = {
       title: '货运',
       createFreight: '创建货运',
       empty: '没有货运',
+      emptyArchived: '没有已归档的货运',
       orders: '订单',
       noOrders: '此货运中暂无订单',
+      archiveView: '货运归档',
+      showArchived: '归档',
+      showActive: '进行中',
+      archiveFiles: '归档文件',
+      noArchiveFiles: '归档文件尚未生成',
+      download: '下载',
+      regenerate: '重新生成归档',
+      uploadCsv: '上传 CSV',
+      archiveFailedTitle: '归档失败',
+      archiveFailedMessage: '归档服务未能生成归档文件。您可以本地下载 CSV 或重试。',
+      downloadLocally: '本地下载 CSV',
+      retry: '重试',
       status: {
         open: '开放',
         closed: '关闭',
         shipped: '已发货',
+        archived: '已归档',
       },
     },
     dashboard: {

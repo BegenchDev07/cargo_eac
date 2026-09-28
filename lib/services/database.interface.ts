@@ -6,10 +6,12 @@ export type UpdateOrderInput = Partial<Omit<WarehouseOrder, 'id' | 'created_at' 
 export interface DatabaseService {
   createOrder(order: Omit<WarehouseOrder, 'id' | 'created_at' | 'client_article'>, images?: string[]): Promise<WarehouseOrder>;
   getOrder(id: string): Promise<WarehouseOrder | null>;
-  listOrders(page?: number, perPage?: number): Promise<{ items: WarehouseOrder[], totalPages: number, totalItems: number }>;
+  listOrders(page?: number, perPage?: number, excludeArchived?: boolean): Promise<{ items: WarehouseOrder[], totalPages: number, totalItems: number }>;
   updateOrder(id: string, order: UpdateOrderInput): Promise<WarehouseOrder | null>;
   deleteOrder(id: string): Promise<boolean>;
-  listFreights(): Promise<Freight[]>;
+  listFreights(includeArchived?: boolean): Promise<Freight[]>;
+  listArchivedFreights(): Promise<Freight[]>;
+  getFreight(id: string): Promise<Freight | null>;
   createFreight(input: CreateFreightInput): Promise<Freight>;
   updateFreight(id: string, input: Partial<Omit<Freight, 'id' | 'freight_number' | 'created_at'>>): Promise<Freight | null>;
   assignOrdersToFreight(orderIds: string[], freightId: string): Promise<void>;

@@ -23,6 +23,7 @@ Create a collection named `orders` with the following fields. These match exactl
 | total_weight    | Number     | Yes      | Min: 0 (= weight × quantity; dashboard/export only, never in QR or print) |
 | cubic_meters    | Number     | Yes      | Min: 0 (volume of a single box)                    |
 | total_volume    | Number     | Yes      | Min: 0 (= cubic_meters × quantity)                 |
+| price           | Number     | No       | Min: 0 (calculated once at creation from pricing_settings; stored, never auto-recalculated — dashboard edits are manual special prices) |
 | product_name    | Text       | Yes      | -                                                   |
 | quantity        | Number     | Yes      | Min: 1                                              |
 | client_number   | Text       | Yes      | -                                                   |
@@ -49,6 +50,18 @@ The app generates `client_article` client-side (day prefix + counter) and relies
 - Update Rule: Leave empty or set based on your needs
 - Delete Rule: Leave empty or set based on your needs
 
+### pricing_settings collection
+
+Single-record collection holding the density-based pricing rates. The app reads the first record (cached per session) and falls back to 250 / 140 / 0.4 if unavailable.
+
+| Field Name        | Field Type | Required | Notes                                      |
+|-------------------|------------|----------|--------------------------------------------|
+| density_threshold | Number     | Yes      | kg/m³; at or below → base rate (250)       |
+| base_rate         | Number     | Yes      | $/m³ base rate (140)                       |
+| excess_rate       | Number     | Yes      | $ per kg/m³ above the threshold (0.4)      |
+
+Formula: `density = total_weight / total_volume`; rate = `base_rate` if density ≤ threshold, else `base_rate + (density − threshold) × excess_rate`; `price = rate × total_volume`. All calculated values rounded to 3 decimals.
+
 ### 2. `freights` Collection
 
 Create a collection named `freights` with the following fields:
@@ -58,7 +71,33 @@ Create a collection named `freights` with the following fields:
 | freight_number | Text      | Yes      | **Unique index required** (see below)         |
 | load_date     | Date       | Yes      | -                                             |
 | notes         | Text       | No       | -                                             |
-| status        | Select     | No       | Values: `open`, `closed`, `shipped`. Default: `open` |
+| status        | Select     | No       | Values: `open`, `closed`, `shipped`, `archived`. Default: `open` |
+| archive_version | Number   | No       | Written by the archiver service; `>= 1` means an archive CSV exists |
+| archive_files | JSON       | No       | Array of archive file paths relative to the archiver base URL, e.g. `["20261120/20261120-1430-F-0001-2.csv"]` |
+
+**Archiving:**
+
+Setting `status` to `archived` triggers the external archiver service (see `archiver/`), which generates a CSV snapshot of the freight's orders, stores it under a dated folder, and updates `archive_version` / `archive_files` on the freight record. The app hides archived freights (and their orders) from general lists; they are reachable through the archive view on the freights tab. The archiver base URL is configured via `EXPO_PUBLIC_ARCHIVER_URL` (default `http://127.0.0.1:8091`) and exposes `GET /archives/<relative-path>`, `POST /regenerate/:freightId`, `POST /archives/upload?freightId=xxx`, and `GET /health`.
+
+## Archive CSV Format
+
+The archiver service and the client-side fallback (`utils/csv-export.ts`, used when the archiver is unreachable) implement this **identical, byte-compatible** format:
+
+- UTF-8. `generateFreightCSV()` returns the string **without** a BOM; callers prepend `\uFEFF` when saving to a file (so Excel detects UTF-8).
+- Semicolon `;` delimiter, CRLF line endings, trailing newline at EOF. Decimal separator is a comma; floats are rounded to 3 decimals (`0,125`), integers are plain (`2`).
+- Fields containing `;` or newlines are wrapped in double quotes (embedded quotes doubled).
+
+The file contains **only the orders table** — the same columns, in the same order, as the freight detail grid (no metadata header).
+
+**Header row** (exactly):
+
+```
+Артикул;Имя клиента;Наименование;Вес (кг);Общий вес (кг);Объём (м³);Общий объём (м³);Количество коробок;Номер клиента;Тип груза;Стоимость;Дата;Фотографии товара
+```
+
+**Rows** (one per order, in this column order): `client_article`, `client_name`, `product_name`, `weight`, `total_weight`, `cubic_meters` (3 dec), `total_volume` (3 dec), `quantity`, `client_number`, `cargo_type` as the Russian label from `translations.ru.dashboard.cargoTypes`, `price` (3 dec), `date` as `DD.MM.YYYY HH:mm`, photo count.
+
+**File names** follow `YYYYMMDD-HHmm-<freight_number>-<version>.csv`, where version is the freight's next archive version (`(archive_version ?? 0) + 1`); files are stored under a `YYYYMMDD/` dated folder.
 
 **Unique index on `freight_number`:**
 
@@ -88,13 +127,14 @@ The app generates `freight_number` client-side (`F-0001`, `F-0002`, ...) and ret
 
 ## Environment Variables
 
-The app uses the following environment variable:
+The app uses the following environment variables:
 
 ```
 EXPO_PUBLIC_POCKETBASE_URL=http://120.55.49.54
+EXPO_PUBLIC_ARCHIVER_URL=http://127.0.0.1:8091
 ```
 
-This is already configured in `.env` file.
+These are already configured in `.env` file / `app.json` `extra`.
 
 ## Data Flow
 

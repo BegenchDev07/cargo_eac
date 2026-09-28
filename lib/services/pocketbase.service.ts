@@ -4,14 +4,37 @@ import { DatabaseService, UpdateOrderInput } from './database.interface';
 import { WarehouseOrder } from '../types/order';
 import { Freight, CreateFreightInput } from '../types/freight';
 import Constants from 'expo-constants';
+import { calculateOrderPrice, DEFAULT_RATES, PricingRates } from '../../utils/pricing';
 
-const pocketbaseUrl = Constants.expoConfig?.extra?.EXPO_PUBLIC_POCKETBASE_URL || process.env.EXPO_PUBLIC_POCKETBASE_URL || 'http://120.55.49.54';
-
+// LOCAL fallback: 'http://127.0.0.1:8090'
+//const pocketbaseUrl = Constants.expoConfig?.extra?.EXPO_PUBLIC_POCKETBASE_URL || process.env.EXPO_PUBLIC_POCKETBASE_URL || 'http://120.55.49.54';
+const pocketbaseUrl = 'http://120.55.49.54';
 const pb = new PocketBase(pocketbaseUrl);
 
 pb.autoCancellation(false);
 
 class PocketBaseService implements DatabaseService {
+  private pricingRatesCache: PricingRates | null = null;
+
+  private async getPricingRates(): Promise<PricingRates> {
+    if (this.pricingRatesCache) return this.pricingRatesCache;
+    try {
+      const result = await pb.collection('pricing_settings').getList(1, 1);
+      const record = result.items[0];
+      if (record) {
+        this.pricingRatesCache = {
+          density_threshold: record.density_threshold,
+          base_rate: record.base_rate,
+          excess_rate: record.excess_rate,
+        };
+        return this.pricingRatesCache;
+      }
+    } catch (error) {
+      console.error('Failed to load pricing settings, using defaults:', error);
+    }
+    return DEFAULT_RATES;
+  }
+
   private getFileUrl(collectionName: string, recordId: string, filename: string): string {
     return `${pocketbaseUrl}/api/files/${collectionName}/${recordId}/${filename}`;
   }
@@ -74,6 +97,13 @@ class PocketBaseService implements DatabaseService {
     const maxAttempts = 3;
 
     try {
+      // Price is calculated once at creation from the current rates and
+      // stored; later edits (dashboard/modal) never recalculate it.
+      const rates = await this.getPricingRates();
+      const totalWeight = order.total_weight ?? order.weight * order.quantity;
+      const totalVolume = order.total_volume ?? order.cubic_meters * order.quantity;
+      const price = calculateOrderPrice(totalWeight, totalVolume, rates);
+
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         const formData = new FormData();
         const clientArticle = await this.generateClientArticle();
@@ -82,9 +112,10 @@ class PocketBaseService implements DatabaseService {
         formData.append('client_article', clientArticle);
         formData.append('client_name', order.client_name || '');
         formData.append('weight', order.weight.toString());
-        formData.append('total_weight', (order.total_weight ?? order.weight * order.quantity).toString());
+        formData.append('total_weight', totalWeight.toString());
         formData.append('cubic_meters', order.cubic_meters.toString());
-        formData.append('total_volume', (order.total_volume ?? order.cubic_meters * order.quantity).toString());
+        formData.append('total_volume', totalVolume.toString());
+        formData.append('price', price.toString());
         formData.append('product_name', order.product_name);
         formData.append('quantity', order.quantity.toString());
         formData.append('client_number', order.client_number);
@@ -132,6 +163,7 @@ class PocketBaseService implements DatabaseService {
             total_weight: record.total_weight,
             cubic_meters: record.cubic_meters,
             total_volume: record.total_volume,
+            price: record.price,
             product_name: record.product_name,
             quantity: record.quantity,
             client_number: record.client_number,
@@ -175,6 +207,7 @@ class PocketBaseService implements DatabaseService {
         total_weight: record.total_weight,
         cubic_meters: record.cubic_meters,
         total_volume: record.total_volume,
+        price: record.price,
         product_name: record.product_name,
         quantity: record.quantity,
         client_number: record.client_number,
@@ -192,12 +225,20 @@ class PocketBaseService implements DatabaseService {
     }
   }
 
-  async listOrders(page: number = 1, perPage: number = 50): Promise<{ items: WarehouseOrder[], totalPages: number, totalItems: number }> {
+  async listOrders(page: number = 1, perPage: number = 50, excludeArchived: boolean = true): Promise<{ items: WarehouseOrder[], totalPages: number, totalItems: number }> {
     try {
-      const resultList = await pb.collection('orders').getList(page, perPage, {
+      // Orders under archived freights are hidden from general lists, but
+      // callers that filter client-side per freight (dashboard detail views)
+      // pass excludeArchived=false so archived freights keep their orders.
+      const options: Record<string, any> = {
         sort: '-created',
         expand: 'freight',
-      });
+      };
+      if (excludeArchived) {
+        options.filter = `(freight = '' || freight.status != 'archived')`;
+      }
+
+      const resultList = await pb.collection('orders').getList(page, perPage, options);
 
       const items = resultList.items.map((record) => ({
         id: record.id,
@@ -207,6 +248,7 @@ class PocketBaseService implements DatabaseService {
         total_weight: record.total_weight,
         cubic_meters: record.cubic_meters,
         total_volume: record.total_volume,
+        price: record.price,
         product_name: record.product_name,
         quantity: record.quantity,
         client_number: record.client_number,
@@ -240,6 +282,7 @@ class PocketBaseService implements DatabaseService {
       if (order.total_weight !== undefined) updateData.total_weight = order.total_weight;
       if (order.cubic_meters !== undefined) updateData.cubic_meters = order.cubic_meters;
       if (order.total_volume !== undefined) updateData.total_volume = order.total_volume;
+      if (order.price !== undefined) updateData.price = order.price;
       if (order.product_name !== undefined) updateData.product_name = order.product_name;
       if (order.quantity !== undefined) updateData.quantity = order.quantity;
       if (order.client_number !== undefined) updateData.client_number = order.client_number;
@@ -260,6 +303,7 @@ class PocketBaseService implements DatabaseService {
         total_weight: record.total_weight,
         cubic_meters: record.cubic_meters,
         total_volume: record.total_volume,
+        price: record.price,
         product_name: record.product_name,
         quantity: record.quantity,
         client_number: record.client_number,
@@ -287,23 +331,70 @@ class PocketBaseService implements DatabaseService {
     }
   }
 
-  async listFreights(): Promise<Freight[]> {
-    try {
-      const resultList = await pb.collection('freights').getList(1, 500, {
-        sort: '-created',
-      });
+  private mapFreightRecord(record: any): Freight {
+    // archive_files is a PB json field: usually an array, but parse if it
+    // comes back as a string.
+    let archiveFiles: string[] | undefined;
+    if (Array.isArray(record.archive_files)) {
+      archiveFiles = record.archive_files;
+    } else if (typeof record.archive_files === 'string' && record.archive_files) {
+      try {
+        const parsed = JSON.parse(record.archive_files);
+        if (Array.isArray(parsed)) archiveFiles = parsed;
+      } catch {
+        archiveFiles = undefined;
+      }
+    }
 
-      return resultList.items.map((record) => ({
-        id: record.id,
-        freight_number: record.freight_number,
-        load_date: record.load_date,
-        notes: record.notes,
-        status: record.status,
-        created_at: record.created,
-      }));
+    return {
+      id: record.id,
+      freight_number: record.freight_number,
+      load_date: record.load_date,
+      notes: record.notes,
+      status: record.status,
+      archive_version: record.archive_version ?? undefined,
+      archive_files: archiveFiles,
+      created_at: record.created,
+    };
+  }
+
+  async listFreights(includeArchived: boolean = false): Promise<Freight[]> {
+    try {
+      const options: Record<string, any> = { sort: '-created' };
+      if (!includeArchived) {
+        options.filter = 'status != "archived"';
+      }
+
+      const resultList = await pb.collection('freights').getList(1, 500, options);
+
+      return resultList.items.map((record) => this.mapFreightRecord(record));
     } catch (error) {
       console.error('PocketBase list freights error:', error);
       return [];
+    }
+  }
+
+  async listArchivedFreights(): Promise<Freight[]> {
+    try {
+      const resultList = await pb.collection('freights').getList(1, 500, {
+        sort: '-created',
+        filter: 'status = "archived"',
+      });
+
+      return resultList.items.map((record) => this.mapFreightRecord(record));
+    } catch (error) {
+      console.error('PocketBase list archived freights error:', error);
+      return [];
+    }
+  }
+
+  async getFreight(id: string): Promise<Freight | null> {
+    try {
+      const record = await pb.collection('freights').getOne(id);
+      return this.mapFreightRecord(record);
+    } catch (error) {
+      console.error('PocketBase get freight error:', error);
+      return null;
     }
   }
 
@@ -340,14 +431,7 @@ class PocketBaseService implements DatabaseService {
 
       const record = await pb.collection('freights').update(id, updateData);
 
-      return {
-        id: record.id,
-        freight_number: record.freight_number,
-        load_date: record.load_date,
-        notes: record.notes,
-        status: record.status,
-        created_at: record.created,
-      };
+      return this.mapFreightRecord(record);
     } catch (error) {
       console.error('PocketBase update freight error:', error);
       throw new Error(`Failed to update freight: ${error}`);
@@ -369,14 +453,7 @@ class PocketBaseService implements DatabaseService {
             status: input.status || 'open',
           });
 
-          return {
-            id: record.id,
-            freight_number: record.freight_number,
-            load_date: record.load_date,
-            notes: record.notes,
-            status: record.status,
-            created_at: record.created,
-          };
+          return this.mapFreightRecord(record);
         } catch (createError: any) {
           // A unique index on freight_number (see POCKETBASE_SETUP.md) makes the
           // server reject collisions; regenerate the number and retry.

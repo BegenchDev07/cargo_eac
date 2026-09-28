@@ -3,7 +3,9 @@ export interface Freight {
   freight_number: string;
   load_date: string;
   notes?: string;
-  status?: 'open' | 'closed' | 'shipped';
+  status?: 'open' | 'closed' | 'shipped' | 'archived';
+  archive_version?: number;
+  archive_files?: string[];
   created_at?: string;
 }
 

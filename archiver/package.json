@@ -1,0 +1,17 @@
+{
+  "name": "cargo-archiver",
+  "version": "1.0.0",
+  "description": "Archiving service: snapshots archived freights' orders to versioned CSV files",
+  "main": "index.js",
+  "private": true,
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "eventsource": "^3.0.7",
+    "pocketbase": "^0.26.3"
+  }
+}
