@@ -121,7 +121,28 @@ class PocketBaseService implements DatabaseService {
         formData.append('client_number', order.client_number);
         formData.append('cargo_type', order.cargo_type || 'standard');
         formData.append('date', new Date().toISOString());
-        formData.append('qr_data', JSON.stringify(order.qr_data || {}));
+
+        // qr_data keeps the FULL creation payload (incl. X/Y/Z, price);
+        // the printed QR is trimmed separately in print.service.
+        const fullPayload = {
+          order_id: '',
+          client_article: clientArticle,
+          client_name: order.client_name || '',
+          weight: order.weight,
+          total_weight: totalWeight,
+          dimension_x: order.dimension_x,
+          dimension_y: order.dimension_y,
+          dimension_z: order.dimension_z,
+          cubic_meters: order.cubic_meters,
+          total_volume: totalVolume,
+          price,
+          product_name: order.product_name,
+          quantity: order.quantity,
+          client_number: order.client_number,
+          cargo_type: order.cargo_type || 'standard',
+          date: new Date().toISOString(),
+        };
+        formData.append('qr_data', JSON.stringify(fullPayload, null, 2));
 
         if (images && images.length > 0) {
           for (let i = 0; i < images.length; i++) {
@@ -161,6 +182,9 @@ class PocketBaseService implements DatabaseService {
             client_name: record.client_name,
             weight: record.weight,
             total_weight: record.total_weight,
+            dimension_x: record.dimension_x,
+            dimension_y: record.dimension_y,
+            dimension_z: record.dimension_z,
             cubic_meters: record.cubic_meters,
             total_volume: record.total_volume,
             price: record.price,
@@ -171,6 +195,7 @@ class PocketBaseService implements DatabaseService {
             freight_id: record.expand?.freight?.id,
             freight_number: record.expand?.freight?.freight_number,
             qr_data: record.qr_data,
+            qr_code: record.qr_code,
             pictures: this.mapRecordToPictures(record),
             date: record.date,
             created_at: record.created,
@@ -205,6 +230,9 @@ class PocketBaseService implements DatabaseService {
         client_name: record.client_name,
         weight: record.weight,
         total_weight: record.total_weight,
+        dimension_x: record.dimension_x,
+        dimension_y: record.dimension_y,
+        dimension_z: record.dimension_z,
         cubic_meters: record.cubic_meters,
         total_volume: record.total_volume,
         price: record.price,
@@ -215,6 +243,7 @@ class PocketBaseService implements DatabaseService {
         freight_id: record.expand?.freight?.id,
         freight_number: record.expand?.freight?.freight_number,
         qr_data: record.qr_data,
+        qr_code: record.qr_code,
         pictures: this.mapRecordToPictures(record),
         date: record.date,
         created_at: record.created,
@@ -246,6 +275,9 @@ class PocketBaseService implements DatabaseService {
         client_name: record.client_name,
         weight: record.weight,
         total_weight: record.total_weight,
+        dimension_x: record.dimension_x,
+        dimension_y: record.dimension_y,
+        dimension_z: record.dimension_z,
         cubic_meters: record.cubic_meters,
         total_volume: record.total_volume,
         price: record.price,
@@ -256,6 +288,7 @@ class PocketBaseService implements DatabaseService {
         freight_id: record.expand?.freight?.id,
         freight_number: record.expand?.freight?.freight_number,
         qr_data: record.qr_data,
+        qr_code: record.qr_code,
         pictures: this.mapRecordToPictures(record),
         date: record.date,
         created_at: record.created,
@@ -301,6 +334,9 @@ class PocketBaseService implements DatabaseService {
         client_name: record.client_name,
         weight: record.weight,
         total_weight: record.total_weight,
+        dimension_x: record.dimension_x,
+        dimension_y: record.dimension_y,
+        dimension_z: record.dimension_z,
         cubic_meters: record.cubic_meters,
         total_volume: record.total_volume,
         price: record.price,
@@ -311,6 +347,7 @@ class PocketBaseService implements DatabaseService {
         freight_id: record.expand?.freight?.id,
         freight_number: record.expand?.freight?.freight_number,
         qr_data: record.qr_data,
+        qr_code: record.qr_code,
         pictures: this.mapRecordToPictures(record),
         date: record.date,
         created_at: record.created,

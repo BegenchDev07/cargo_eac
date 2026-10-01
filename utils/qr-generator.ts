@@ -1,26 +1,26 @@
 import { WarehouseOrder } from '../lib/types/order';
 
+// Only the fields the warehouse staff actually needs when scanning a label —
+// kept short so the QR stays low-density and easy to scan/print.
 export interface QRCodeData {
-  order_id: string;
   client_article: string;
-  weight: number;
-  cubic_meters: number;
+  client_name?: string;
   product_name: string;
-  quantity: number;
+  total_weight?: number;
+  total_volume?: number;
+  cargo_type?: string;
   client_number: string;
-  date: string;
 }
 
 export const generateQRData = (order: WarehouseOrder): string => {
   const qrData: QRCodeData = {
-    order_id: order.id || '',
     client_article: order.client_article,
-    weight: order.weight,
-    cubic_meters: order.cubic_meters,
+    client_name: order.client_name,
     product_name: order.product_name,
-    quantity: order.quantity,
+    total_weight: order.total_weight,
+    total_volume: order.total_volume,
+    cargo_type: order.cargo_type,
     client_number: order.client_number,
-    date: order.created_at || new Date().toISOString(),
   };
 
   return JSON.stringify(qrData, null, 2);

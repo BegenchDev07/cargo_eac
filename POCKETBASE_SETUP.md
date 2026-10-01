@@ -29,7 +29,7 @@ Create a collection named `orders` with the following fields. These match exactl
 | client_number   | Text       | Yes      | -                                                   |
 | cargo_type      | Select     | No       | Values: `dangerous`, `liquid`, `brand`, `standard`. Default: `standard` |
 | date            | Date       | Yes      | -                                                   |
-| qr_data         | JSON       | No       | -                                                   |
+| qr_data         | JSON       | No       | Full order payload encoded in the QR: article, name, weight/total_weight, dimension_x/y/z, cubic_meters/total_volume, product, quantity, client number, cargo_type, price, date |
 | pictures        | File       | No       | Multiple values. Allowed types: image/*             |
 | freight         | Relation   | No       | Related collection: `freights`, single, on delete: set null |
 

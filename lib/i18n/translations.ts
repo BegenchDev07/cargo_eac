@@ -60,6 +60,9 @@ export interface Translations {
     errorMessage: string;
     printError: string;
     printErrorMessage: string;
+    printCopiesTitle: string;
+    printCopiesPrint: string;
+    printCopiesCancel: string;
   };
   upload: {
     uploadingPhotos: string;
@@ -111,6 +114,7 @@ export interface Translations {
     downloadLocally: string;
     retry: string;
     status: {
+      all: string;
       open: string;
       closed: string;
       shipped: string;
@@ -226,6 +230,9 @@ export const translations: Record<Language, Translations> = {
       errorMessage: 'Не удалось загрузить данные заказа',
       printError: 'Ошибка печати',
       printErrorMessage: 'Не удалось распечатать QR-код',
+      printCopiesTitle: 'Сколько этикеток напечатать?',
+      printCopiesPrint: 'Печать',
+      printCopiesCancel: 'Отмена',
     },
     upload: {
       uploadingPhotos: 'Загрузка фотографий...',
@@ -278,6 +285,7 @@ export const translations: Record<Language, Translations> = {
       downloadLocally: 'Скачать CSV локально',
       retry: 'Повторить',
       status: {
+        all: 'Все',
         open: 'Открыт',
         closed: 'Закрыт',
         shipped: 'Отправлен',
@@ -391,6 +399,9 @@ export const translations: Record<Language, Translations> = {
       errorMessage: '无法加载订单数据',
       printError: '打印错误',
       printErrorMessage: '无法打印二维码',
+      printCopiesTitle: '打印多少份标签？',
+      printCopiesPrint: '打印',
+      printCopiesCancel: '取消',
     },
     upload: {
       uploadingPhotos: '正在上传照片...',
@@ -442,6 +453,7 @@ export const translations: Record<Language, Translations> = {
       downloadLocally: '本地下载 CSV',
       retry: '重试',
       status: {
+        all: '全部',
         open: '开放',
         closed: '关闭',
         shipped: '已发货',

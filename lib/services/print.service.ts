@@ -1,5 +1,6 @@
 import md5 from 'md5';
 import { WarehouseOrder } from '../types/order';
+import { generateQRData } from '../../utils/qr-generator';
 
 // Kuaimai cloud print credentials
 const KUAIMAI_APP_ID = '1763132720820';
@@ -19,10 +20,12 @@ const formatDate = (dateStr: string) => {
 const buildRenderDataArray = (order: any) => {
   const payload = [
     {
-      "tester order": [
+      "tester_order": [
         {
           order_number: order.client_article,
-          qr_data: order.qr_data || "",
+          // Trimmed QR payload (article, name, product, totals, cargo type,
+          // client number) — short enough for a dense-free, scannable label QR
+          qr_code: generateQRData(order),
           name: order.product_name,
           weight: `${order.weight}kg`,
           count: String(order.quantity),
@@ -75,14 +78,14 @@ const signStr = ({ obj, secret }: any) => {
   return md5(secret + str + secret);
 };
 
-export const printOrderLabel = (order: WarehouseOrder): void => {
+export const printOrderLabel = (order: WarehouseOrder, copies: number = 1): void => {
   const renderData = buildRenderDataArray(order);
 
   const date = new Date();
 
   const data = {
     appId: KUAIMAI_APP_ID,
-    printTimes: "1",
+    printTimes: String(Math.max(1, Math.floor(copies))),
     sn: KUAIMAI_PRINTER_SN,
     renderDataArray: renderData,
     templateId: KUAIMAI_TEMPLATE_ID,

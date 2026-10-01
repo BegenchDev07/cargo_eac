@@ -8,6 +8,9 @@ export interface WarehouseOrder {
   client_name?: string;
   weight: number;
   total_weight?: number;
+  dimension_x?: number;
+  dimension_y?: number;
+  dimension_z?: number;
   cubic_meters: number;
   total_volume?: number;
   price?: number;
@@ -18,6 +21,7 @@ export interface WarehouseOrder {
   freight_id?: string;
   freight_number?: string;
   qr_data?: any;
+  qr_code?: string;
   pictures?: string[];
   date?: string;
   created_at?: string;

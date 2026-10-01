@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import QRCode from 'react-native-qrcode-svg';
-import * as Print from 'expo-print';
 import { Printer, ArrowLeft, CheckCircle, Pencil } from 'lucide-react-native';
 import { WarehouseOrder } from '../../lib/types/order';
 import { databaseService } from '../../lib/services/pocketbase.service';
@@ -20,6 +19,7 @@ import { printOrderLabel } from '../../lib/services/print.service';
 import { generateQRData, formatOrderDate } from '../../utils/qr-generator';
 import { useLanguage } from '../../lib/i18n/LanguageContext';
 import OrderEditModal from '../../components/OrderEditModal';
+import PrintCopiesModal from '../../components/PrintCopiesModal';
 
 const { width } = Dimensions.get('window');
 
@@ -32,6 +32,7 @@ export default function OrderDetailScreen() {
   const [printing, setPrinting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [copiesModalVisible, setCopiesModalVisible] = useState(false);
 
   useEffect(() => {
     loadOrder();
@@ -71,93 +72,17 @@ export default function OrderDetailScreen() {
     Alert.alert(t.orders.editSuccess);
   };
 
-  const handlePrint = async () => {
-    if (!order || !qrData) return;    
+  const handlePrint = () => {
+    if (!order || !qrData) return;
+    setCopiesModalVisible(true);
+  };
+
+  const handleConfirmPrint = (copies: number) => {
+    if (!order) return;
+    setCopiesModalVisible(false);
     setPrinting(true);
-    debugger;
-    try {      
-      printOrderLabel(order);
-
-      // const html = `
-      //   <html>
-      //     <head>
-      //       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      //       <style>
-      //         body {
-      //           font-family: Arial, sans-serif;
-      //           padding: 20px;
-      //           display: flex;
-      //           flex-direction: column;
-      //           align-items: center;
-      //         }
-      //         .qr-container {
-      //           margin: 20px 0;
-      //           display: flex;
-      //           justify-content: center;
-      //         }
-      //         .info {
-      //           margin-top: 20px;
-      //           width: 100%;
-      //         }
-      //         .info-row {
-      //           margin: 8px 0;
-      //           display: flex;
-      //         }
-      //         .label {
-      //           font-weight: bold;
-      //           width: 150px;
-      //         }
-      //         .value {
-      //           flex: 1;
-      //         }
-      //         h2 {
-      //           text-align: center;
-      //           margin-bottom: 20px;
-      //         }
-      //       </style>
-      //     </head>
-      //     <body>
-      //       <h2>${t.qr.orderTitle} #${order.id?.slice(0, 8)}</h2>
-      //       <div class="qr-container">
-      //         <svg width="300" height="300" viewBox="0 0 300 300">
-      //           <rect width="300" height="300" fill="white"/>
-      //         </svg>
-      //       </div>
-      //       <div class="info">
-      //         <div class="info-row">
-      //           <span class="label">${t.form.clientArticle}:</span>
-      //           <span class="value">${order.client_article}</span>
-      //         </div>
-      //         <div class="info-row">
-      //           <span class="label">${t.form.productName}:</span>
-      //           <span class="value">${order.product_name}</span>
-      //         </div>
-      //         <div class="info-row">
-      //           <span class="label">${t.form.weight}:</span>
-      //           <span class="value">${order.weight} kg</span>
-      //         </div>
-      //         <div class="info-row">
-      //           <span class="label">${t.form.cubicMeters}:</span>
-      //           <span class="value">${order.cubic_meters.toFixed(4)} m³</span>
-      //         </div>
-      //         <div class="info-row">
-      //           <span class="label">${t.form.quantity}:</span>
-      //           <span class="value">${order.quantity}</span>
-      //         </div>
-      //         <div class="info-row">
-      //           <span class="label">${t.form.clientNumber}:</span>
-      //           <span class="value">${order.client_number}</span>
-      //         </div>
-      //         <div class="info-row">
-      //           <span class="label">${t.form.date}:</span>
-      //           <span class="value">${formatOrderDate(order.created_at || '')}</span>
-      //         </div>
-      //       </div>
-      //     </body>
-      //   </html>
-      // `;
-
-      // await Print.printAsync({ html });
+    try {
+      printOrderLabel(order, copies);
     } catch (error) {
       Alert.alert(t.qr.printError, t.qr.printErrorMessage);
     } finally {
@@ -293,6 +218,13 @@ export default function OrderDetailScreen() {
           order={order}
           onClose={() => setEditModalVisible(false)}
           onSaved={handleOrderSaved}
+        />
+
+        <PrintCopiesModal
+          visible={copiesModalVisible}
+          onCancel={() => setCopiesModalVisible(false)}
+          onPrint={handleConfirmPrint}
+          printing={printing}
         />
       </ScrollView>
     </View>

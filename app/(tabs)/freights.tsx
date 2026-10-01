@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Truck, Plus, RefreshCw, Archive, Download, Upload, RotateCw } from 'lucide-react-native';
+import { Truck, Plus, RefreshCw, Download, Upload, RotateCw } from 'lucide-react-native';
 import { databaseService } from '../../lib/services/pocketbase.service';
 import { Freight } from '../../lib/types/freight';
 import { WarehouseOrder } from '../../lib/types/order';
@@ -31,7 +31,7 @@ export default function FreightsScreen() {
   const [newLoadDate, setNewLoadDate] = useState(new Date().toISOString().slice(0, 16));
   const [newNotes, setNewNotes] = useState('');
   const [creating, setCreating] = useState(false);
-  const [showArchived, setShowArchived] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<Freight['status'] | 'all'>('all');
   const [archiveFailedFreight, setArchiveFailedFreight] = useState<Freight | null>(null);
   // Web-only hidden input for manual CSV upload (native omits the option)
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
@@ -41,9 +41,9 @@ export default function FreightsScreen() {
     setLoading(true);
     try {
       const [freightsResult, ordersResult] = await Promise.all([
-        showArchived
-          ? databaseService.listArchivedFreights()
-          : databaseService.listFreights(),
+        // Fetch all freights once (incl. archived); the status filter is
+        // applied client-side so switching filters needs no refetch.
+        databaseService.listFreights(true),
         // excludeArchived=false: order counts must also work for archived freights
         databaseService.listOrders(1, 500, false),
       ]);
@@ -55,7 +55,12 @@ export default function FreightsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [showArchived, t]);
+  }, [t]);
+
+  const filteredFreights =
+    statusFilter === 'all'
+      ? freights
+      : freights.filter((freight) => freight.status === statusFilter);
 
   useEffect(() => {
     loadData();
@@ -216,42 +221,49 @@ export default function FreightsScreen() {
       <View style={styles.header}>
         <View style={styles.titleRow}>
           <Truck size={28} color="#007AFF" />
-          <Text style={styles.title}>
-            {showArchived ? t.freights.archiveView : t.freights.title}
-          </Text>
+          <Text style={styles.title}>{t.freights.title}</Text>
         </View>
         <View style={styles.actions}>
           <TouchableOpacity style={styles.actionButton} onPress={loadData} disabled={loading}>
             <RefreshCw size={18} color="#007AFF" style={loading ? styles.spinning : undefined} />
             <Text style={styles.actionText}>{t.dashboard.refresh}</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => setShowArchived((prev) => !prev)}>
-            <Archive size={18} color="#007AFF" />
-            <Text style={styles.actionText}>
-              {showArchived ? t.freights.showActive : t.freights.showArchived}
-            </Text>
+          <TouchableOpacity style={styles.actionButton} onPress={() => setModalVisible(true)}>
+            <Plus size={18} color="#007AFF" />
+            <Text style={styles.actionText}>{t.freights.createFreight}</Text>
           </TouchableOpacity>
-          {!showArchived && (
-            <TouchableOpacity style={styles.actionButton} onPress={() => setModalVisible(true)}>
-              <Plus size={18} color="#007AFF" />
-              <Text style={styles.actionText}>{t.freights.createFreight}</Text>
-            </TouchableOpacity>
-          )}
         </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterRow}>
+          {(['all', 'open', 'closed', 'shipped', 'archived'] as const).map((status) => {
+            const active = statusFilter === status;
+            return (
+              <TouchableOpacity
+                key={status}
+                style={[styles.filterButton, active && styles.filterButtonActive]}
+                onPress={() => setStatusFilter(active ? 'all' : status)}>
+                <Text
+                  style={[styles.filterButtonText, active && styles.filterButtonTextActive]}>
+                  {t.freights.status[status]}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
 
       <ScrollView style={styles.content}>
-        {freights.length === 0 ? (
+        {filteredFreights.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Truck size={64} color="#C7C7CC" />
             <Text style={styles.emptyText}>
-              {showArchived ? t.freights.emptyArchived : t.freights.empty}
+              {statusFilter === 'archived' ? t.freights.emptyArchived : t.freights.empty}
             </Text>
           </View>
         ) : (
-          freights.map((freight) => {
+          filteredFreights.map((freight) => {
             const freightOrders = getOrdersByFreight(freight.id!);
             const archiveFiles = freight.archive_files ?? [];
 
@@ -312,7 +324,7 @@ export default function FreightsScreen() {
                     ))}
                   </View>
 
-                  {showArchived && (
+                  {freight.status === 'archived' && (
                     <View style={styles.archiveSection}>
                       <Text style={styles.archiveSectionTitle}>
                         {t.freights.archiveFiles}
@@ -477,6 +489,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#007AFF',
+  },
+  filterRow: {
+    gap: 8,
+    paddingVertical: 4,
+  },
+  filterButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    backgroundColor: '#F2F2F7',
+  },
+  filterButtonActive: {
+    backgroundColor: '#007AFF',
+  },
+  filterButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6b7280',
+  },
+  filterButtonTextActive: {
+    color: '#FFFFFF',
   },
   content: {
     flex: 1,
