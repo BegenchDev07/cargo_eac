@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import QRCode from 'react-native-qrcode-svg';
@@ -16,6 +17,7 @@ import { generateQRData, formatOrderDate } from '../utils/qr-generator';
 import { useLanguage } from '../lib/i18n/LanguageContext';
 import { printOrderLabel } from '../lib/services/print.service';
 import PrintCopiesModal from '../components/PrintCopiesModal';
+import ImagePreviewModal from '../components/ImagePreviewModal';
 
 export default function QRDisplayScreen() {
   const router = useRouter();
@@ -25,6 +27,7 @@ export default function QRDisplayScreen() {
   const [qrData, setQrData] = useState<string>('');
   const [printing, setPrinting] = useState(false);
   const [copiesModalVisible, setCopiesModalVisible] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   useEffect(() => {
     if (params.orderData) {
@@ -135,6 +138,25 @@ export default function QRDisplayScreen() {
         </View>
       </View>
 
+      {order.pictures && order.pictures.length > 0 && (
+        <View style={styles.imagesCard}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {order.pictures.map((pic, index) => (
+              <TouchableOpacity
+                key={index}
+                onPress={() => setPreviewImage(pic)}
+                activeOpacity={0.8}>
+                <Image
+                  source={{ uri: pic }}
+                  style={styles.imagePreview}
+                  resizeMode="cover"
+                />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
       <View style={styles.buttonContainer}>
         <TouchableOpacity
           style={[styles.button, styles.printButton]}
@@ -161,6 +183,11 @@ export default function QRDisplayScreen() {
         onCancel={() => setCopiesModalVisible(false)}
         onPrint={handleConfirmPrint}
         printing={printing}
+      />
+
+      <ImagePreviewModal
+        uri={previewImage}
+        onClose={() => setPreviewImage(null)}
       />
     </ScrollView>
   );
@@ -225,6 +252,24 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
+  },
+  imagesCard: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  imagePreview: {
+    width: 120,
+    height: 120,
+    borderRadius: 8,
+    marginRight: 12,
+    backgroundColor: '#F2F2F7',
   },
   infoTitle: {
     fontSize: 20,

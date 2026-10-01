@@ -20,6 +20,7 @@ import { generateQRData, formatOrderDate } from '../../utils/qr-generator';
 import { useLanguage } from '../../lib/i18n/LanguageContext';
 import OrderEditModal from '../../components/OrderEditModal';
 import PrintCopiesModal from '../../components/PrintCopiesModal';
+import ImagePreviewModal from '../../components/ImagePreviewModal';
 
 const { width } = Dimensions.get('window');
 
@@ -33,6 +34,7 @@ export default function OrderDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [copiesModalVisible, setCopiesModalVisible] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   useEffect(() => {
     loadOrder();
@@ -181,12 +183,16 @@ export default function OrderDetailScreen() {
             </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imageScroll}>
               {order.pictures.map((pic, index) => (
-                <Image
+                <TouchableOpacity
                   key={index}
-                  source={{ uri: pic }}
-                  style={styles.imagePreview}
-                  resizeMode="cover"
-                />
+                  onPress={() => setPreviewImage(pic)}
+                  activeOpacity={0.8}>
+                  <Image
+                    source={{ uri: pic }}
+                    style={styles.imagePreview}
+                    resizeMode="cover"
+                  />
+                </TouchableOpacity>
               ))}
             </ScrollView>
           </View>
@@ -225,6 +231,11 @@ export default function OrderDetailScreen() {
           onCancel={() => setCopiesModalVisible(false)}
           onPrint={handleConfirmPrint}
           printing={printing}
+        />
+
+        <ImagePreviewModal
+          uri={previewImage}
+          onClose={() => setPreviewImage(null)}
         />
       </ScrollView>
     </View>
